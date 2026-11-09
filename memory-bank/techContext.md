@@ -32,7 +32,7 @@
 ## Git (з 2026-11-09)
 - Репозиторій у `E:\DB`, гілка `main`, автор комітів (лише в цьому репозиторії): bmmgroup2019 / bmmgroup2019@gmail.com. Перший коміт — «Прототип панелі виробництва меблів».
 - `.gitignore`: без `node_modules`, `.next`, `.env*` (крім `.env.example`), `*.tsbuildinfo`. У репозиторії `memory-bank` і `.claude/skills` — переїжджають на інший ПК.
-- Мета користувача: працювати з двох ПК. Далі — приватний репозиторій на GitHub (користувач створює й дає посилання), `git remote add origin …` і `git push -u origin main`. Комітити й пушити лише на прохання користувача.
+- Віддалений: приватний https://github.com/bmmgroup2019-hub/mebli-panel (`origin`, `main` відстежує `origin/main`), вхід через Git Credential Manager уже збережено на цьому ПК. Мета — працювати з двох ПК: перед роботою `git pull`, після — коміт і `git push`. Комітити й пушити лише на прохання користувача.
 
 ## Не налаштовано
-Проект Supabase, сервіс Render, віддалений репозиторій на GitHub.
+Проект Supabase, сервіс Render.
