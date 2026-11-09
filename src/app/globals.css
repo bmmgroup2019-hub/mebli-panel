@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+/*
+ * Стиль адмін-панелі: темна щільна (UI UX Pro Max: Dark Mode + Data-Dense Dashboard),
+ * шрифти Fira Sans / Fira Code. Тема завжди темна; друк — на білому (нижче).
+ */
+:root {
+  color-scheme: dark;
+  --page: #0e1013;
+  --surface: #171a1f;
+  --ink: #e8eaed;
+  --ink-2: #9aa3ae;
+  --line: #2a2f37;
+  --wash: #20242b;
+  --today: #3a3214;
+  --accent: #3b82f6;
+  --accent-ink: #93bbfb;
+  --accent-fill: #2563eb;
+  --accent-fill-hover: #1d4ed8;
+  --accent-wash: #172a4a;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --critical: #f26b6b;
+  --stage-now: #3b82f6;
+  --stage-zamir: #3987e5;
+  --stage-proekt: #d95926;
+  --stage-materialy: #199e70;
+  --stage-vyrobnytstvo: #c98500;
+  --stage-montazh: #d55181;
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-line: var(--line);
+  --color-wash: var(--wash);
+  --color-today: var(--today);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-accent-fill: var(--accent-fill);
+  --color-accent-fill-hover: var(--accent-fill-hover);
+  --color-accent-wash: var(--accent-wash);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-critical: var(--critical);
+  --color-stage-now: var(--stage-now);
+  --font-sans: var(--font-fira-sans), system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-fira-code), ui-monospace, Consolas, monospace;
+}
+
+/* Друкується лише специфікація, завжди на білому. */
+@media print {
+  :root {
+    color-scheme: light;
+    --page: #fff;
+    --surface: #fff;
+    --ink: #000;
+    --ink-2: #333;
+    --line: #999;
+    --wash: #fff;
+  }
+  body * {
+    visibility: hidden;
+  }
+  #print-spec,
+  #print-spec * {
+    visibility: visible;
+  }
+  #print-spec {
+    position: absolute;
+    inset: 0 0 auto;
+  }
+}
+
+body {
+  background: var(--page);
+  color: var(--ink);
+  font-family: var(--font-fira-sans), system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
+/* Цифри (суми, кількості, лічильники) — моноширинним Fira Code, щоб стовпчики рівнялися. */
+.tabular-nums {
+  font-family: var(--font-fira-code), ui-monospace, Consolas, monospace;
+}
+
+/* Галочки й прапорці — акцентним кольором. */
+input[type="checkbox"] {
+  accent-color: var(--accent-fill);
+}
+
+/* Рядок вкладок гортається пальцем, без видимої смуги прокрутки. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Видимий фокус для клавіатури — акцентним кольором. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
