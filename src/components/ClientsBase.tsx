@@ -3,23 +3,33 @@
 import Link from "next/link";
 import { useState } from "react";
 import { projectLabel, type Client, type Project } from "@/lib/mock-projects";
-import { isFinished, useWeekData } from "@/lib/week-store";
-import { ClientDialog } from "../ClientDialog";
+import { isFinished, useCanManage, useCurrentUser, useWeekData } from "@/lib/week-store";
+import { ClientDialog } from "./ClientDialog";
 
 const field = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink";
 
 type Status = "" | "active" | "finished" | "none";
 
-/** Панель адміна: замовники з контактами й проектами, пошук і фільтр за станом проектів. */
-export function ClientsAdmin() {
+/**
+ * База замовників для адміністратора й менеджерів: контакти й проекти, пошук і фільтр за станом проектів.
+ * Дані замовника змінює будь-який менеджер (з одним замовником можуть працювати різні менеджери),
+ * а проект іншого менеджера відкривається лише для перегляду — це обмежує картка проекту.
+ */
+export function ClientsBase() {
   const data = useWeekData();
+  const user = useCurrentUser();
+  const canManage = useCanManage();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<Status>("");
   const [editing, setEditing] = useState<Client | "new" | null>(null);
   if (!data) return null;
+  if (!canManage) return <p className="text-sm text-ink-2">Цей розділ доступний лише адміністратору й менеджерам.</p>;
 
   const done = (project: Project) => isFinished(data, projectLabel(project));
   const projectsOf = (client: Client) => data.projects.filter((p) => p.clientId === client.id);
+  const managerName = (project: Project) => data.people.find((person) => person.id === project.managerId)?.name ?? "";
+  // Позначка «не ваш» має сенс лише менеджеру: адміністратор змінює будь-який проект.
+  const foreign = (project: Project) => user?.role === "manager" && project.managerId !== user.id;
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   const digits = query.replace(/\D/g, "");
   const all = [...data.clients].sort((a, b) => a.name.localeCompare(b.name, "uk"));
@@ -43,10 +53,10 @@ export function ClientsAdmin() {
   return (
     <section className="grid gap-3">
       <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h2 className="font-semibold">Замовники</h2>
-          <p className="text-sm text-ink-2">Дані замовника спільні для всіх його проектів. Натисніть на замовника, щоб змінити.</p>
-        </div>
+        <p className="text-sm text-ink-2">
+          Дані замовника спільні для всіх його проектів. Натисніть на замовника, щоб змінити.
+          {user?.role === "manager" && " Проекти інших менеджерів відкриваються лише для перегляду."}
+        </p>
         <button type="button" className="rounded-md bg-accent-fill px-2.5 py-1.5 text-sm font-semibold text-white hover:bg-accent-fill-hover" onClick={() => setEditing("new")}>
           + Додати замовника
         </button>
@@ -91,12 +101,18 @@ export function ClientsAdmin() {
                   </span>
                 </button>
                 {projects.length > 0 ? (
-                  <ul className="grid gap-0.5">
+                  <ul className="grid gap-1">
                     {projects.map((project) => (
                       <li key={project.id} className="flex justify-between gap-2">
-                        <Link href={`/projects/${project.id}`} className="min-w-0 hover:underline">
-                          №{project.number} {project.product}
-                        </Link>
+                        <span className="min-w-0">
+                          <Link href={`/projects/${project.id}`} className="hover:underline">
+                            №{project.number} {project.product}
+                          </Link>
+                          <span className="block text-xs text-ink-2">
+                            менеджер: {managerName(project) || "—"}
+                            {foreign(project) && " · лише перегляд"}
+                          </span>
+                        </span>
                         <span className="shrink-0 text-xs text-ink-2">{done(project) ? "завершено" : "у роботі"}</span>
                       </li>
                     ))}

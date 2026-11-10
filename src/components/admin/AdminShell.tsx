@@ -14,12 +14,6 @@ export const ADMIN_SECTIONS = [
     count: (d: WeekData) => `Людей: ${d.people.length}`,
   },
   {
-    href: "/admin/clients",
-    label: "Замовники",
-    about: "Замовники з контактами й проектами: додавання, зміна, пошук і фільтри.",
-    count: (d: WeekData) => `Замовників: ${d.clients.length}`,
-  },
-  {
     href: "/admin/stages",
     label: "Етапи",
     about: "Етапи виробництва, їх порядок і де створюється специфікація.",

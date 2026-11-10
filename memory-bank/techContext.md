@@ -34,5 +34,9 @@
 - `.gitignore`: без `node_modules`, `.next`, `.env*` (крім `.env.example`), `*.tsbuildinfo`. У репозиторії `memory-bank` і `.claude/skills` — переїжджають на інший ПК.
 - Віддалений: приватний https://github.com/bmmgroup2019-hub/mebli-panel (`origin`, `main` відстежує `origin/main`), вхід через Git Credential Manager уже збережено на цьому ПК. Мета — працювати з двох ПК: перед роботою `git pull`, після — коміт і `git push`. Комітити й пушити лише на прохання користувача.
 
+## Другий ПК (з 2026-11-10)
+- Репозиторій у `D:\DB` (клон з GitHub). Git 2.56 і Node.js 26.13 LTS поставлено через winget; winget тут падає на джерелі msstore, тому з `--source winget`.
+- Автора комітів задано лише в цьому репозиторії, як на першому ПК. `git` у PATH може не бути — викликати `C:\Program Files\Git\cmd\git.exe`.
+
 ## Не налаштовано
 Проект Supabase, сервіс Render.

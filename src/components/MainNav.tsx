@@ -3,17 +3,18 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { signOut, useCurrentUser, useSeesOffice } from "@/lib/week-store";
+import { signOut, useCanManage, useCurrentUser, useSeesOffice } from "@/lib/week-store";
 
 /**
  * main — пункти, що на телефоні видно завжди; решта ховається під «Ще» («worker» — завжди видно лише складальникам).
- * office — не для складальників.
+ * office — не для складальників; managers — лише адміністратору й менеджерам.
  */
 const SECTIONS = [
   { href: "/", label: "Головна", main: true, office: true },
   { href: "/week", label: "Тиждень", main: true },
   { href: "/issues", label: "Проблеми", main: true },
   { href: "/projects", label: "Проекти", main: true, office: true },
+  { href: "/clients", label: "Замовники", main: false, office: true, managers: true },
   { href: "/done", label: "Виконано", main: "worker" },
   { href: "/materials", label: "Матеріали", main: false, office: true },
   { href: "/admin", label: "Адмін", main: false, adminOnly: true },
@@ -26,8 +27,10 @@ export function MainNav() {
   const user = useCurrentUser();
   const [moreOpen, setMoreOpen] = useState(false);
   const seesOffice = useSeesOffice();
+  const canManage = useCanManage();
   const sections = SECTIONS.filter(
-    (section) => (!section.adminOnly || user?.role === "admin") && (!section.office || seesOffice),
+    (section) =>
+      (!section.adminOnly || user?.role === "admin") && (!section.office || seesOffice) && (!section.managers || canManage),
   );
   const isCurrent = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
   // Пункт «worker» на телефоні під «Ще» в офісу, щоб меню влізло в ширину.
