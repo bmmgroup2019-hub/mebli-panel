@@ -41,7 +41,8 @@ export type SpecGroup = { id: string; name: string };
 export type PurchaseStatus = "ordered" | "bought";
 export type SpecRow = { id: string; groupId: string; name: string; quantity: number | null; unit: string; purchase?: PurchaseStatus };
 
-export type Payment = { id: string; date: string; amount: number };
+/** `final` — доплату внесено після завершення виробництва (аванс до передачі його не має). */
+export type Payment = { id: string; date: string; amount: number; final?: boolean };
 
 /** Додаткові витрати в кошторисі: силікон, доставка тощо. */
 export type Extra = { id: string; name: string; amount: number };

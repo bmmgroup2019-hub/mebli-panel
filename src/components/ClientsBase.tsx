@@ -57,7 +57,7 @@ export function ClientsBase() {
           Дані замовника спільні для всіх його проектів. Натисніть на замовника, щоб змінити.
           {user?.role === "manager" && " Проекти інших менеджерів відкриваються лише для перегляду."}
         </p>
-        <button type="button" className="rounded-md bg-accent-fill px-2.5 py-1.5 text-sm font-semibold text-white hover:bg-accent-fill-hover" onClick={() => setEditing("new")}>
+        <button type="button" className="rounded-md bg-success-fill px-2.5 py-1.5 text-sm font-semibold text-white hover:bg-success-fill-hover" onClick={() => setEditing("new")}>
           + Додати замовника
         </button>
       </div>

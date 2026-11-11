@@ -423,8 +423,11 @@ export function updateProject(id: string, fields: Partial<Omit<Project, "id">>) 
 }
 
 export function addPayment(projectId: string, date: string, amount: number) {
-  const project = read().projects.find((p) => p.id === projectId);
-  if (project) updateProject(projectId, { payments: [...project.payments, { id: newId(), date, amount }] });
+  const current = read();
+  const project = current.projects.find((p) => p.id === projectId);
+  if (!project) return;
+  const final = isFinished(current, projectLabel(project));
+  updateProject(projectId, { payments: [...project.payments, { id: newId(), date, amount, ...(final && { final }) }] });
 }
 
 export function removePayment(projectId: string, paymentId: string) {
@@ -730,8 +733,13 @@ function adminMark(current: WeekData, item: WorkItem) {
   return todayIso();
 }
 
-/** Чого бракує, щоб передати замовлення далі: перший етап (прийом) — лише після авансу. */
+/**
+ * Чого бракує, щоб передати замовлення далі.
+ * Без виконавця не можна: зарплата нараховується саме йому, інакше вона не дісталася б нікому.
+ * Перший етап (прийом) — ще й лише після авансу.
+ */
 export function blockedReason(data: WeekData, item: WorkItem) {
+  if (!assigneeOf(item, data.people)) return "Спершу виберіть, хто бере";
   if (item.stage !== data.stages[0]?.id) return null;
   const project = data.projects.find((p) => projectLabel(p) === item.order);
   return project && project.payments.length === 0 ? "Спершу внесіть аванс" : null;

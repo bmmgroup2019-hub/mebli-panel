@@ -19,6 +19,8 @@
   --accent-fill-hover: #1d4ed8;
   --accent-wash: #172a4a;
   --success: #22c55e;
+  --success-fill: #15803d;
+  --success-fill-hover: #166534;
   --warning: #f59e0b;
   --critical: #f26b6b;
   --stage-now: #3b82f6;
@@ -43,6 +45,8 @@
   --color-accent-fill-hover: var(--accent-fill-hover);
   --color-accent-wash: var(--accent-wash);
   --color-success: var(--success);
+  --color-success-fill: var(--success-fill);
+  --color-success-fill-hover: var(--success-fill-hover);
   --color-warning: var(--warning);
   --color-critical: var(--critical);
   --color-stage-now: var(--stage-now);

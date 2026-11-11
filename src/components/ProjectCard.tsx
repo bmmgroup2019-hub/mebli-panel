@@ -262,7 +262,13 @@ function MyPay({ project }: { project: Project }) {
 
 function Finance({ project }: { project: Project }) {
   const { canPay, own } = useProjectAccess(project);
-  const paid = project.payments.reduce((sum, payment) => sum + payment.amount, 0);
+  const data = useWeekData();
+  const isAdmin = useIsAdmin();
+  const finished = data ? isFinished(data, projectLabel(project)) : false;
+  // Менеджер прибирає лише оплати свого періоду: до передачі — аванс, після завершення — доплати.
+  // Аванс, внесений до передачі, після неї змінює лише адміністратор.
+  const canRemove = (payment: Project["payments"][number]) => isAdmin || (canPay && Boolean(payment.final) === finished);
+  const paid =project.payments.reduce((sum, payment) => sum + payment.amount, 0);
   // Клієнт платить вартість, яку вписав менеджер (не розрахункову).
   const price = project.clientPrice;
   const left = price === null ? null : price - paid;
@@ -295,7 +301,7 @@ function Finance({ project }: { project: Project }) {
               <span>{index === 0 ? "Аванс" : "Оплата"} · {formatShort(payment.date)}</span>
               <span className="flex items-center gap-2 tabular-nums">
                 {money(payment.amount)}
-                {canPay && (
+                {canRemove(payment) && (
                   <button
                     type="button"
                     aria-label={`Прибрати оплату ${money(payment.amount)}`}
