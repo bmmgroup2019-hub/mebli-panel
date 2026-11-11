@@ -149,7 +149,40 @@ export function ProjectEstimate({ project }: { project: Project }) {
             : "У розрахункову вартість також входять націнка й роботи інших етапів — їх задає адміністратор."}
         </p>
       </section>
+
+      {project.changes.length > 0 && <Changes project={project} />}
     </>
+  );
+}
+
+/** Зміни після авансу, новіші першими: що було й що стало, хто й коли. Їх треба погодити із замовником. */
+function Changes({ project }: { project: Project }) {
+  const day = (iso: string) => iso.split("-").reverse().join(".");
+  return (
+    <section className="grid gap-2">
+      <h2 className="font-semibold">Зміни після авансу</h2>
+      <p className="text-xs text-ink-2">Аванс уже внесено: ці зміни треба погодити із замовником.</p>
+      <ul className="divide-y divide-line rounded-lg border border-warning/40 bg-surface text-sm">
+        {[...project.changes].reverse().map((change) => (
+          <li key={change.id} className="grid gap-0.5 px-3 py-2">
+            <span className="min-w-0">{change.label}</span>
+            <span className="tabular-nums">
+              {change.from === "—" ? (
+                <>додано: <span className="font-medium">{change.to}</span></>
+              ) : (
+                <>
+                  <span className="text-ink-2 line-through decoration-ink-2/60">{change.from}</span> → <span className="font-medium">{change.to}</span>
+                </>
+              )}
+            </span>
+            <span className="text-xs text-ink-2">
+              {day(change.date)}
+              {change.author && ` · ${change.author}`}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 

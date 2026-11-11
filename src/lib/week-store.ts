@@ -12,6 +12,7 @@ import {
   MOCK_STAGES,
   mockProjects,
   projectLabel,
+  type ChangeNote,
   type Client,
   type Material,
   type Project,
@@ -82,7 +83,7 @@ export type WeekData = {
   sessionId: string | null;
 };
 
-const KEY = "panel-week-v32";
+const KEY = "panel-week-v37";
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 function seed(): WeekData {
@@ -151,7 +152,8 @@ function seed(): WeekData {
       // Прийом і розрахунок: тиждень прийому замовлення.
       ...projects.map((project) => {
         const accepted = mondayOf(project.acceptedOn);
-        return item(projectLabel(project), "intake", accepted, accepted, project.managerId);
+        // Шафа-купе ще на прийомі: аванс є, на наступний етап не передано.
+        return item(projectLabel(project), "intake", accepted, project.id === "kupe" ? null : accepted, project.managerId);
       }),
       item(kitchen, "project", addDays(week, -28), lastWeek),
       item(kitchen, "cnc", lastWeek, week),
@@ -248,6 +250,18 @@ export function useSeesOffice() {
 export function specAccess(data: WeekData, user: Person | null, project: Project) {
   if (!user) return { sees: false, canEdit: false };
   if (user.role === "admin") return { sees: true, canEdit: true };
+  const { creator, mine, done } = specRole(data, user, project);
+  // Після передачі робочого проекту далі конструктор специфікацію лише переглядає.
+  if (creator) return { sees: true, canEdit: !done };
+  if (mine) return { sees: true, canEdit: false };
+  return { sees: done, canEdit: false };
+}
+
+/**
+ * Місце людини в етапі «Специфікація» проекту: mine — людина цього етапу; creator — призначена на проект
+ * (або ще нікого не призначено); done — етап завершено, робочий проект передано далі.
+ */
+export function specRole(data: WeekData, user: Person, project: Project) {
   const order = projectLabel(project);
   const specStages = data.stages.filter((stage) => stage.createsSpec);
   const mine = specStages.filter((stage) => user.stages.includes(stage.id));
@@ -259,10 +273,8 @@ export function specAccess(data: WeekData, user: Person | null, project: Project
       return assignee === user.id || assignee === null;
     });
   });
-  if (creator) return { sees: true, canEdit: true };
-  if (mine.length > 0) return { sees: true, canEdit: false };
   const done = specStages.length > 0 && specStages.every((stage) => stageStatus(data.items, order, stage.id) === "done");
-  return { sees: done, canEdit: false };
+  return { mine: mine.length > 0, creator, done };
 }
 
 /**
@@ -370,16 +382,21 @@ export function removeClient(id: string) {
   return true;
 }
 
-/** id нового проекту або null, якщо такий номер уже є: за підписом проекту план знаходить замовлення. */
+/** Номер наступного замовлення: найбільший числовий номер + 1. */
+export const nextProjectNumber = (projects: Project[]) =>
+  String(projects.reduce((max, p) => Math.max(max, Number.parseInt(p.number, 10) || 0), 0) + 1);
+
+/** id нового проекту або null, якщо замовника немає. Номер проставляється автоматично. */
 export function addProject(
-  fields: Omit<Project, "id" | "client" | "payments" | "spec" | "estimate" | "extras" | "clientPrice" | "managerId" | "adminEditedOn">,
+  fields: Omit<Project, "id" | "number" | "client" | "payments" | "spec" | "estimate" | "extras" | "clientPrice" | "managerId" | "adminEditedOn" | "changes">,
 ) {
   const current = read();
   const client = current.clients.find((c) => c.id === fields.clientId);
-  if (!client || numberTaken(current.projects, fields.number)) return null;
+  if (!client) return null;
   // Проект належить тому, хто його створив.
   const project: Project = {
     ...fields,
+    number: nextProjectNumber(current.projects),
     client: client.name,
     id: newId(),
     payments: [],
@@ -389,12 +406,70 @@ export function addProject(
     clientPrice: null,
     managerId: current.sessionId ?? "",
     adminEditedOn: null,
+    changes: [],
   };
   write({ ...current, projects: [...current.projects, project] });
   // Новий проект одразу стає на прийом у поточному тижні.
   const first = current.stages[0];
   if (first) addItem(projectLabel(project), first.id, mondayOf(todayIso()));
   return project.id;
+}
+
+type ChangeDraft = Pick<ChangeNote, "key" | "label" | "from" | "to">;
+
+const changeMoney = (value: number | null) => (value === null ? "не вписано" : `${Math.round(value).toLocaleString("uk-UA")} грн`);
+const changeDate = (iso: string) => (iso ? iso.split("-").reverse().join(".") : "не вказано");
+const changeRow = (row: SpecRow) => `${row.quantity === null ? "без кількості" : row.quantity.toLocaleString("uk-UA")} ${row.unit}`;
+
+/** Що змінилось у проекті для замовника: виріб, дати, замовник, вартість, рядки кошторису, додаткові витрати. */
+function changesBetween(data: WeekData, before: Project, after: Project): ChangeDraft[] {
+  const list: ChangeDraft[] = [];
+  const field = (key: string, label: string, from: string, to: string) => {
+    if (from !== to) list.push({ key, label, from, to });
+  };
+  field("product", "Виріб", before.product, after.product);
+  field("acceptedOn", "Дата прийому", changeDate(before.acceptedOn), changeDate(after.acceptedOn));
+  field("dueOn", "Дата здачі", changeDate(before.dueOn), changeDate(after.dueOn));
+  const clientName = (id: string) => data.clients.find((c) => c.id === id)?.name ?? "—";
+  field("clientId", "Замовник", clientName(before.clientId), clientName(after.clientId));
+  field("clientPrice", "Вартість для клієнта", changeMoney(before.clientPrice), changeMoney(after.clientPrice));
+  // Рядки кошторису: додано, прибрано, інша кількість або назва.
+  for (const row of after.estimate) {
+    const old = before.estimate.find((r) => r.id === row.id);
+    const from = !old ? "—" : old.name === row.name ? changeRow(old) : `${old.name}, ${changeRow(old)}`;
+    const to = !old || old.name === row.name ? changeRow(row) : `${row.name}, ${changeRow(row)}`;
+    field(`row:${row.id}`, `Кошторис: ${row.name}`, from, to);
+  }
+  for (const row of before.estimate.filter((r) => !after.estimate.some((a) => a.id === r.id))) {
+    field(`row:${row.id}`, `Кошторис: ${row.name}`, changeRow(row), "прибрано");
+  }
+  for (const extra of after.extras.filter((e) => !before.extras.some((b) => b.id === e.id))) {
+    field(`extra:${extra.id}`, `Додаткові витрати: ${extra.name}`, "—", changeMoney(extra.amount));
+  }
+  for (const extra of before.extras.filter((e) => !after.extras.some((a) => a.id === e.id))) {
+    field(`extra:${extra.id}`, `Додаткові витрати: ${extra.name}`, changeMoney(extra.amount), "прибрано");
+  }
+  return list;
+}
+
+/**
+ * Додає зміни до журналу. Та сама річ, змінена тією ж людиною того ж дня, — один запис «було → стало»;
+ * якщо повернули як було — запис зникає. Доданий і того ж дня прибраний рядок теж зникає.
+ */
+function mergeChanges(notes: ChangeNote[], drafts: ChangeDraft[], author: string): ChangeNote[] {
+  const date = todayIso();
+  let next = [...notes];
+  for (const draft of drafts) {
+    const same = next.find((note) => note.key === draft.key && note.date === date && note.author === author);
+    if (!same) {
+      next.push({ ...draft, id: newId(), date, author });
+      continue;
+    }
+    const merged = { ...same, label: draft.label, to: draft.to };
+    const undone = merged.from === merged.to || (merged.from === "—" && merged.to === "прибрано");
+    next = undone ? next.filter((note) => note !== same) : next.map((note) => (note === same ? merged : note));
+  }
+  return next;
 }
 
 /** Нова назва проекту переходить і в план, і в проблеми. false, якщо такий номер уже є. */
@@ -409,6 +484,8 @@ export function updateProject(id: string, fields: Partial<Omit<Project, "id">>) 
   // Інший замовник — інше ім'я в підписі.
   if (fields.clientId) next.client = current.clients.find((c) => c.id === fields.clientId)?.name ?? next.client;
   if (numberTaken(current.projects, next.number, id)) return false;
+  // Після авансу кожну зміну позначаємо: її треба погодити із замовником.
+  if (project.payments.length > 0) next.changes = mergeChanges(project.changes, changesBetween(current, project, next), user?.name ?? "");
   const oldLabel = projectLabel(project);
   const newLabel = projectLabel(next);
   const rename = <T extends { order: string }>(list: T[]) =>

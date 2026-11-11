@@ -77,6 +77,11 @@ export function ProjectCard({ id }: { id: string }) {
         {project.adminEditedOn && (
           <p className="text-xs text-ink-2">Змінено адміністратором {project.adminEditedOn.split("-").reverse().join(".")}</p>
         )}
+        {canManage && project.changes.length > 0 && (
+          <p className="text-xs text-warning">
+            Змінено після авансу {project.changes.at(-1)!.date.split("-").reverse().join(".")} — що саме, у «Кошторисі»
+          </p>
+        )}
         {readOnlyNote && <p className="text-xs text-ink-2">{readOnlyNote}</p>}
       </header>
 
@@ -121,7 +126,6 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function MainFields({ project }: { project: Project }) {
   const data = useWeekData();
   const canManage = useProjectAccess(project).canEdit;
-  const [error, setError] = useState("");
   const [clientDialog, setClientDialog] = useState<"edit" | "new" | null>(null);
   if (!data) return null;
   const client = clientOf(data, project);
@@ -154,13 +158,12 @@ function MainFields({ project }: { project: Project }) {
     );
   }
 
-  /** Порожнє значення не зберігаємо, повертаємо попереднє. */
-  const saveText = (key: "number" | "product", target: HTMLInputElement) => {
+  /** Порожню назву не зберігаємо, повертаємо попередню. */
+  const saveProduct = (target: HTMLInputElement) => {
     const value = target.value.trim();
-    if (value === project[key]) return;
-    const saved = value !== "" && updateProject(project.id, { [key]: value });
-    if (!saved) target.value = project[key];
-    setError(value !== "" && !saved ? "Такий номер уже є." : "");
+    if (value === project.product) return;
+    if (value === "") target.value = project.product;
+    else updateProject(project.id, { product: value });
   };
   const clients = [...data.clients].sort((a, b) => a.name.localeCompare(b.name, "uk"));
 
@@ -168,10 +171,11 @@ function MainFields({ project }: { project: Project }) {
     <>
       <section className="grid gap-2 rounded-lg border border-line bg-surface p-3 sm:grid-cols-2">
         <Field label="Номер">
-          <input defaultValue={project.number} className={input} onBlur={(e) => saveText("number", e.target)} />
+          {/* Номер проставляється автоматично й не змінюється. */}
+          <span className="py-1.5 text-sm font-semibold text-ink tabular-nums">№{project.number}</span>
         </Field>
         <Field label="Виріб">
-          <input defaultValue={project.product} className={input} onBlur={(e) => saveText("product", e.target)} />
+          <input defaultValue={project.product} className={input} onBlur={(e) => saveProduct(e.target)} />
         </Field>
         <Field label="Дата прийому">
           <input
@@ -189,7 +193,6 @@ function MainFields({ project }: { project: Project }) {
             onChange={(e) => updateProject(project.id, { dueOn: e.target.value })}
           />
         </Field>
-        {error && <p role="alert" className="text-sm text-critical sm:col-span-2">{error}</p>}
       </section>
 
       <section className="grid gap-2 rounded-lg border border-line bg-surface p-3">

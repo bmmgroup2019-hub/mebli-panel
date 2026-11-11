@@ -3,7 +3,7 @@
 import { todayIso } from "@/lib/dates";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { addClient, addProject, useCanManage, useWeekData } from "@/lib/week-store";
+import { addClient, addProject, nextProjectNumber, useCanManage, useWeekData } from "@/lib/week-store";
 import { ClientFields, readClient } from "./ClientDialog";
 
 const input = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink";
@@ -64,17 +64,11 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
             const values = new FormData(event.currentTarget);
             const text = (name: string) => String(values.get(name) ?? "").trim();
             const newClient = readClient(values, "client_");
-            if (!text("number") || !text("product") || !clientId || (clientId === "new" && !newClient.name)) {
-              setError("Заповніть номер, виріб і замовника.");
-              return;
-            }
-            // Номер перевіряємо до створення замовника, щоб не лишити зайвого запису.
-            if (data?.projects.some((project) => project.number === text("number"))) {
-              setError("Такий номер уже є.");
+            if (!text("product") || !clientId || (clientId === "new" && !newClient.name)) {
+              setError("Заповніть виріб і замовника.");
               return;
             }
             const id = addProject({
-              number: text("number"),
               clientId: clientId === "new" ? addClient(newClient) : clientId,
               product: text("product"),
               acceptedOn: text("acceptedOn"),
@@ -88,8 +82,12 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
             router.push(`/projects/${id}`);
           }}
         >
-          {label("Номер", "number", { autoFocus: true })}
-          {label("Виріб", "product")}
+          {/* Номер проставляється автоматично: наступний після найбільшого. */}
+          <p className="grid gap-0.5 text-xs text-ink-2">
+            Номер
+            <span className="py-1.5 text-sm font-semibold text-ink tabular-nums">№{nextProjectNumber(data?.projects ?? [])}</span>
+          </p>
+          {label("Виріб", "product", { autoFocus: true })}
           <label className="col-span-2 grid gap-0.5 text-xs text-ink-2">
             Замовник
             <select aria-label="Замовник" value={clientId} onChange={(e) => setClientId(e.target.value)} className={input}>

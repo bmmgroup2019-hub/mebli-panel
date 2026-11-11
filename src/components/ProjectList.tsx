@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { isFinished, stageStatus, useCanManage, useCurrentUser, useWeekData } from "@/lib/week-store";
+import { isFinished, specRole, stageStatus, useCanManage, useCurrentUser, useWeekData } from "@/lib/week-store";
 import { projectLabel, type Project } from "@/lib/mock-projects";
 import { NewProjectButton } from "./NewProjectButton";
 
@@ -17,6 +17,8 @@ const monthLabel = (month: string) => `${MONTH_NAMES[Number(month.slice(5, 7)) -
  * Список проектів карточками з фільтрами: місяць і дата прийому, назва або номер, замовник, менеджер.
  * Менеджер за замовчуванням бачить свої проекти; фільтр менеджера — коли менеджерів кілька.
  * Фільтр етапу: за замовчуванням усі в роботі, завершені — лише якщо їх вибрати.
+ * Конструктор (людина етапу «Специфікація») бачить свої проекти двома вкладками: у черзі на обробку й передані далі.
+ * Менеджер — теж двома: в роботі (прийом не завершено, можна змінювати) і передані далі (змінює лише адміністратор).
  */
 export function ProjectList() {
   const data = useWeekData();
@@ -28,7 +30,18 @@ export function ProjectList() {
   const [stage, setStage] = useState(""); // "" — усі в роботі, "finished", "all", "none" або id етапу
   const [managerChoice, setManagerChoice] = useState<string | null>(null); // null — за замовчуванням
   const user = useCurrentUser();
+  const [view, setView] = useState<"queue" | "passed">("queue");
   if (!data) return null;
+
+  // Конструктор: проекти, призначені йому (або ще нікому), — у черзі, поки етап не завершено, далі — передані.
+  const specUser = !canManage && user && data.stages.some((s) => s.createsSpec && user.stages.includes(s.id)) ? user : null;
+  const roles = new Map(specUser ? data.projects.map((project) => [project.id, specRole(data, specUser, project)]) : []);
+  const managerTabs = user?.role === "manager";
+  const first = data.stages[0]?.id;
+  /** Чи проект у вкладці «Передані далі»: у конструктора — етап «Специфікація» завершено, у менеджера — прийом. */
+  const passed = (project: Project) =>
+    specUser ? roles.get(project.id)?.done : first !== undefined && stageStatus(data.items, projectLabel(project), first) === "done";
+  const tabs = Boolean(specUser || managerTabs);
 
   const managers = data.people.filter((person) => person.role === "manager");
   const managerId = managerChoice ?? (user?.role === "manager" ? user.id : "");
@@ -60,9 +73,18 @@ export function ProjectList() {
       (!date || project.acceptedOn === date) &&
       (!clientId || project.clientId === clientId) &&
       (!managerId || project.managerId === managerId) &&
-      (stage === "all" || (stage === "" ? stages.get(project.id) !== "finished" : stages.get(project.id) === stage))
+      (!specUser || roles.get(project.id)?.creator) &&
+      (!tabs || passed(project) === (view === "passed")) &&
+      // Фільтр етапу — для всіх, крім конструктора й вкладки «В роботі» менеджера.
+      (specUser || (managerTabs && view === "queue") || stage === "all" || (stage === "" ? stages.get(project.id) !== "finished" : stages.get(project.id) === stage))
     );
   });
+  // У черзі першими ті, що вже на етапі конструктора, далі — ті, що ще на попередніх етапах.
+  const specStage = data.stages.find((s) => s.createsSpec)?.id;
+  if (specUser && view === "queue") found.sort((a, b) => Number(stages.get(b.id) === specStage) - Number(stages.get(a.id) === specStage));
+  const countOf = (wanted: boolean) =>
+    data.projects.filter((p) => (specUser ? roles.get(p.id)?.creator : !managerId || p.managerId === managerId) && Boolean(passed(p)) === wanted).length;
+  const showStage = !specUser && !(managerTabs && view === "queue");
   const filtered = query || month || date || clientId || stage || managerChoice !== null;
 
   const reset = () => {
@@ -76,6 +98,28 @@ export function ProjectList() {
 
   return (
     <>
+      {tabs && (
+        <div role="tablist" className="no-scrollbar flex gap-4 overflow-x-auto border-b border-line text-sm">
+          {([["queue", specUser ? "В черзі на обробку" : "В роботі", countOf(false)], ["passed", "Передані далі", countOf(true)]] as const).map(([id, text, count]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={view === id}
+              onClick={() => setView(id)}
+              className={`-mb-px shrink-0 border-b-2 px-0.5 pb-2 ${view === id ? "border-accent font-semibold text-ink" : "border-transparent text-ink-2 hover:text-ink"}`}
+            >
+              {text} <span className="tabular-nums text-ink-2">{count}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {managerTabs && (
+        <p className="text-xs text-ink-2">
+          {view === "queue" ? "Прийом ще не завершено: свої проекти можна змінювати." : "Передано на наступний етап: змінює лише адміністратор."}
+        </p>
+      )}
+
       {canManage && (
         <div className="flex justify-end">
           <NewProjectButton />
@@ -107,17 +151,19 @@ export function ProjectList() {
             </option>
           ))}
         </select>
-        <select aria-label="Етап" value={stage} onChange={(event) => setStage(event.target.value)} className={field}>
-          <option value="">Усі в роботі</option>
-          {data.stages.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.label}
-            </option>
-          ))}
-          {hasNone && <option value="none">Ще не у виробництві</option>}
-          <option value="finished">Завершені</option>
-          <option value="all">Усі, разом із завершеними</option>
-        </select>
+        {showStage && (
+          <select aria-label="Етап" value={stage} onChange={(event) => setStage(event.target.value)} className={field}>
+            <option value="">Усі в роботі</option>
+            {data.stages.filter((s) => !managerTabs || s.id !== first).map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
+            {hasNone && !managerTabs && <option value="none">Ще не у виробництві</option>}
+            <option value="finished">Завершені</option>
+            <option value="all">Усі, разом із завершеними</option>
+          </select>
+        )}
         {managers.length > 1 && (
           <select aria-label="Менеджер" value={managerId} onChange={(event) => setManagerChoice(event.target.value)} className={field}>
             <option value="">Усі менеджери</option>
@@ -137,7 +183,7 @@ export function ProjectList() {
       <p className="flex flex-wrap items-center gap-x-3 text-sm text-ink-2">
         <span>
           Проектів: {found.length}
-          {found.length !== all.length && ` із ${all.length}`}
+          {!tabs && found.length !== all.length && ` із ${all.length}`}
         </span>
         {filtered && (
           <button type="button" className="underline hover:text-ink" onClick={reset}>

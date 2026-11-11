@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { projectLabel, type Material, type Project, type PurchaseStatus, type SpecGroup, type SpecRow } from "@/lib/mock-projects";
 import { money } from "@/lib/materials";
 import {
@@ -140,9 +141,12 @@ function GroupBlock({
           <tbody>
             {rows.map((row) => (
               <tr key={row.id} className="border-t border-line first:border-t-0">
-                <td className="p-2">{row.name}</td>
-                <td className="whitespace-nowrap p-2 text-right tabular-nums">
-                  {row.quantity === null ? "" : row.quantity.toLocaleString("uk-UA")} {row.unit}
+                <td className="p-2">
+                  {row.name}
+                  {list === "estimate" && <RowCost row={row} material={findMaterial(materials, row.name)} />}
+                </td>
+                <td className="whitespace-nowrap p-2 text-right align-top tabular-nums">
+                  {row.quantity === null ? "" : row.quantity.toLocaleString("uk-UA")} {findMaterial(materials, row.name)?.unit ?? row.unit}
                 </td>
                 {purchase && (
                   <td className="w-px whitespace-nowrap p-2 text-right print:hidden">
@@ -173,46 +177,81 @@ function GroupBlock({
               purchase={purchase}
             />
           ))}
-          <form
-            className={columns}
-            onSubmit={(event) => {
-              event.preventDefault();
-              const form = event.currentTarget;
-              const values = new FormData(form);
-              const typed = String(values.get("name") ?? "").trim();
-              if (!typed) return;
-              addSpecRow(project.id, {
-                groupId: group.id,
-                name: findMaterial(materials, typed)?.name ?? typed,
-                quantity: parseQuantity(String(values.get("quantity") ?? "")),
-                unit: String(values.get("unit") ?? units[0] ?? ""),
-              }, list);
-              form.reset();
-            }}
-          >
-            <input
-              name="name"
-              list={listId}
-              autoComplete="off"
-              aria-label={`Новий матеріал: ${group.name}`}
-              placeholder={materials.length ? "Почніть вводити назву" : "Новий матеріал"}
-              className={`${input} ${nameCell}`}
-              onChange={(event) => {
-                // Вибрали з довідника: одиниця підставляється сама.
-                const material = findMaterial(materials, event.target.value);
-                const unit = event.target.form?.elements.namedItem("unit");
-                if (material && unit instanceof HTMLSelectElement && units.includes(material.unit)) unit.value = material.unit;
-              }}
-            />
-            <input name="quantity" inputMode="decimal" aria-label="Кількість" placeholder="К-сть" className={input} />
-            <select name="unit" aria-label="Одиниця" className={input}>
-              {units.map((unit) => <option key={unit}>{unit}</option>)}
-            </select>
-            <button type="submit" className={button}>Додати</button>
-          </form>
+          <AddRow project={project} group={group} units={units} materials={materials} listId={listId} list={list} />
         </div>
       )}
     </div>
+  );
+}
+
+/** Рядок для нового матеріалу. Одиниця матеріалу з довідника — та, що в довіднику, без вибору; для іншого — вибір. */
+function AddRow({
+  project,
+  group,
+  units,
+  materials,
+  listId,
+  list,
+}: {
+  project: Project;
+  group: SpecGroup;
+  units: string[];
+  materials: Material[];
+  listId: string;
+  list: RowList;
+}) {
+  const [typed, setTyped] = useState("");
+  const material = findMaterial(materials, typed);
+  return (
+    <form
+      className={columns}
+      onSubmit={(event) => {
+        event.preventDefault();
+        const form = event.currentTarget;
+        const values = new FormData(form);
+        const name = typed.trim();
+        if (!name) return;
+        addSpecRow(project.id, {
+          groupId: group.id,
+          name: material?.name ?? name,
+          quantity: parseQuantity(String(values.get("quantity") ?? "")),
+          unit: material?.unit ?? String(values.get("unit") ?? units[0] ?? ""),
+        }, list);
+        form.reset();
+        setTyped("");
+      }}
+    >
+      <input
+        name="name"
+        list={listId}
+        autoComplete="off"
+        value={typed}
+        onChange={(event) => setTyped(event.target.value)}
+        aria-label={`Новий матеріал: ${group.name}`}
+        placeholder={materials.length ? "Почніть вводити назву" : "Новий матеріал"}
+        className={`${input} ${nameCell}`}
+      />
+      <input name="quantity" inputMode="decimal" aria-label="Кількість" placeholder="К-сть" className={input} />
+      {material ? (
+        <span className="self-center px-2 text-sm text-ink-2">{material.unit}</span>
+      ) : (
+        <select name="unit" aria-label="Одиниця" className={input}>
+          {units.map((unit) => <option key={unit}>{unit}</option>)}
+        </select>
+      )}
+      <button type="submit" className={button}>Додати</button>
+    </form>
+  );
+}
+
+/** Вартість рядка кошторису за ціною довідника: ціна за одиницю й сума. */
+function RowCost({ row, material }: { row: SpecRow; material: Material | undefined }) {
+  if (!material || material.price === null) return null;
+  return (
+    <span className="block text-xs text-ink-2 tabular-nums">
+      {money(material.price)} за {material.unit}
+      {row.quantity !== null && <> · <span className="text-ink">{money(row.quantity * material.price)}</span></>}
+    </span>
   );
 }
 
@@ -233,7 +272,9 @@ function EditRow({
   list: RowList;
   purchase: { canMark: boolean } | null;
 }) {
-  const known = Boolean(findMaterial(materials, row.name));
+  const material = findMaterial(materials, row.name);
+  const known = Boolean(material);
+  const cost = list === "estimate" && material?.price != null;
   return (
     <div className={columns}>
       <input
@@ -261,14 +302,19 @@ function EditRow({
         className={input}
         onBlur={(event) => updateSpecRow(projectId, row.id, { quantity: parseQuantity(event.target.value) }, list)}
       />
-      <select
-        aria-label={`Одиниця: ${row.name}`}
-        className={input}
-        value={row.unit}
-        onChange={(event) => updateSpecRow(projectId, row.id, { unit: event.target.value }, list)}
-      >
-        {[...new Set([...units, row.unit])].map((unit) => <option key={unit}>{unit}</option>)}
-      </select>
+      {material ? (
+        // Одиниця матеріалу з довідника — як у довіднику, вибирати не треба.
+        <span className="self-center px-2 text-sm text-ink-2">{material.unit}</span>
+      ) : (
+        <select
+          aria-label={`Одиниця: ${row.name}`}
+          className={input}
+          value={row.unit}
+          onChange={(event) => updateSpecRow(projectId, row.id, { unit: event.target.value }, list)}
+        >
+          {[...new Set([...units, row.unit])].map((unit) => <option key={unit}>{unit}</option>)}
+        </select>
+      )}
       <button
         type="button"
         aria-label={`Прибрати: ${row.name}`}
@@ -277,9 +323,13 @@ function EditRow({
       >
         ×
       </button>
-      {(!known || (purchase && (purchase.canMark || row.purchase))) && (
+      {(!known || cost || (purchase && (purchase.canMark || row.purchase))) && (
         <p className="col-span-3 -mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-2 sm:col-span-4">
-          <span>{known ? "" : list === "estimate" ? "Не з довідника: без ціни, у вартість не входить" : "Не з довідника"}</span>
+          {cost ? (
+            <RowCost row={row} material={material} />
+          ) : (
+            <span>{known ? "" : list === "estimate" ? "Не з довідника: без ціни, у вартість не входить" : "Не з довідника"}</span>
+          )}
           {purchase && <Purchase projectId={projectId} row={row} canMark={purchase.canMark} />}
         </p>
       )}

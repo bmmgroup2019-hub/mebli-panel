@@ -27,8 +27,8 @@ export type Work = { id: string; name: string; unit: string; stageId: StageId; p
 
 /** Приклади робіт, ціни вигадані. */
 export const MOCK_WORKS: Work[] = [
-  { id: "w-cut-chip", name: "Порізка ДСП", unit: "м²", stageId: "cnc", price: 40 },
-  { id: "w-cut-hdf", name: "Порізка ДВП", unit: "м²", stageId: "cnc", price: 15 },
+  { id: "w-cut-chip", name: "Порізка ДСП", unit: "лист", stageId: "cnc", price: 230 },
+  { id: "w-cut-hdf", name: "Порізка ДВП", unit: "лист", stageId: "cnc", price: 90 },
   { id: "w-cut-mdf", name: "Порізка МДФ", unit: "м²", stageId: "cnc", price: 60 },
   { id: "w-edge-thin", name: "Поклейка крайки 0,8 мм", unit: "пог. м", stageId: "edge", price: 5 },
   { id: "w-edge-thick", name: "Поклейка крайки 2 мм", unit: "пог. м", stageId: "edge", price: 8 },
@@ -46,6 +46,12 @@ export type Payment = { id: string; date: string; amount: number; final?: boolea
 
 /** Додаткові витрати в кошторисі: силікон, доставка тощо. */
 export type Extra = { id: string; name: string; amount: number };
+
+/**
+ * Зміна проекту після внесення авансу: що було й що стало, хто й коли змінив.
+ * key — що саме змінено (поле, рядок кошторису, витрата): зміни того самого за день зливаються в один запис.
+ */
+export type ChangeNote = { id: string; date: string; author: string; key: string; label: string; from: string; to: string };
 
 /** Замовник: окремий запис, проекти посилаються на нього. Поверх — для заноски. */
 export type Client = { id: string; name: string; phone: string; address: string; floor: number | null };
@@ -65,6 +71,7 @@ export type Project = {
   clientPrice: number | null; // вартість для клієнта: менеджер вписує вручну, зазвичай із запасом над розрахунковою
   managerId: string; // менеджер, який створив проект: лише він (і адміністратор) його змінює
   adminEditedOn: string | null; // день, коли адміністратор востаннє змінив чужий проект
+  changes: ChangeNote[]; // зміни після авансу, щоб погодити їх із замовником
 };
 
 export const MOCK_UNITS = ["м²", "лист", "пог. м", "шт", "компл."];
@@ -93,38 +100,55 @@ export type Material = {
   workId: string | null;
 };
 
-/** Приклади виробників, вигадані. */
-export const MOCK_MAKERS = ["Деревпласт", "Кромтех", "Метал-Дім", "ПлитаПром", "Стільниця-Про", "Фасад-Майстер", "Фурніс"];
+/** Виробники матеріалів прикладу. */
+export const MOCK_MAKERS = ["Kronospan", "Hranipex", "Muller"];
 
-/** Яка робота в прикладі прив'язана до матеріалу. */
+/** Яка робота в прикладі прив'язана до матеріалу. Крайка тонша за 1 мм — «0,8 мм», товща — «2 мм». */
 function workOf(name: string) {
   if (name.startsWith("ДСП")) return "w-cut-chip";
   if (name.startsWith("ДВП")) return "w-cut-hdf";
   if (name.startsWith("МДФ")) return "w-cut-mdf";
-  if (name.startsWith("Крайка")) return name.includes("0,8") ? "w-edge-thin" : "w-edge-thick";
+  if (name.startsWith("Крайка")) return name.includes("×0,") ? "w-edge-thin" : "w-edge-thick";
   return null;
 }
 
-/** Приклади довідника: назви, виробники й ціни вигадані. */
+/**
+ * Приклади довідника: позиції й роздрібні ціни з каталогу viyar.ua на 11.11.2026, округлено.
+ * ДСП і ДВП — за лист 2800×2070 (5,796 м²); МДФ — за м² із ціни листа 2800×1220 (3,416 м²);
+ * стільниці — за пог. м із ціни 4,1 м.
+ */
 export const MOCK_MATERIALS: Material[] = (
   [
-    ["boards", "ДСП Білий, 18 мм", "ПлитаПром", "м²", 310],
-    ["boards", "ДСП Дуб, 18 мм", "ПлитаПром", "м²", 345],
-    ["boards", "ДСП Графіт, 18 мм", "Деревпласт", "м²", 360],
-    ["boards", "ДВП Білий, 3 мм", "Деревпласт", "м²", 95],
-    ["edging", "Крайка ПВХ Біла, 0,8 мм", "Кромтех", "пог. м", 6],
-    ["edging", "Крайка ПВХ Дуб, 2 мм", "Кромтех", "пог. м", 14],
-    ["facade", "МДФ фарбований, 19 мм", "Фасад-Майстер", "м²", 2400],
-    ["facade", "AGT панель глянець біла, 18 мм", "Фасад-Майстер", "лист", 5200],
-    ["countertop", "Компакт-плита кремова, 12 мм", "Стільниця-Про", "м²", 4800],
-    ["fasteners", "Конфірмат", "", "шт", 1.2],
-    ["fasteners", "Шкант", "", "шт", 0.4],
-    ["fasteners", "Шуруп 4×16", "", "шт", 0.3],
-    ["hardware", "Напрямні прихованого монтажу, 450 мм", "Фурніс", "компл.", 720],
-    ["hardware", "Завіси з доводчиком", "Фурніс", "шт", 95],
-    ["hardware", "Ніжки 100 мм", "Метал-Дім", "шт", 22],
-    ["hardware", "Штанга з кріпленням", "Метал-Дім", "шт", 180],
-    ["hardware", "Сушка для посуду, 600 мм", "Фурніс", "компл.", 1350],
+    ["boards", "ДСП Kronospan 0110 SM Білий корпусний, 18 мм", "Kronospan", "лист", 3834.3],
+    ["boards", "ДСП Kronospan 0110 SM Білий корпусний, 16 мм", "Kronospan", "лист", 3662.64],
+    ["boards", "ДСП Kronospan 0164 PE Антрацит, 18 мм", "Kronospan", "лист", 3960.48],
+    ["boards", "ДСП Kronospan 3025 PR Дуб Сонома світлий, 18 мм", "Kronospan", "лист", 3899.94],
+    ["boards", "ДСП Kronospan K003 PW Дуб Крафт золотий, 18 мм", "Kronospan", "лист", 3960.48],
+    ["boards", "ДСП Kronospan K001 PW Дуб Крафт білий, 18 мм", "Kronospan", "лист", 4142.46],
+    ["boards", "ДСП Kronospan 5981 BS Кашемір, 18 мм", "Kronospan", "лист", 3960.48],
+    ["boards", "ДВП (ЛХДФ) Kronospan 0110 PE Білий, 3 мм", "Kronospan", "лист", 1235.34],
+    ["edging", "Крайка ПВХ 0110 SM Білий, 21×0,8 мм", "", "пог. м", 19.74],
+    ["edging", "Крайка ПВХ Біла, 22×1,8 мм", "Hranipex", "пог. м", 38.34],
+    ["edging", "Крайка ПВХ 0164 PE Антрацит, 21×0,8 мм", "", "пог. м", 19.74],
+    ["edging", "Крайка ПВХ 3025 Дуб Сонома світлий, 21×0,6 мм", "", "пог. м", 14.16],
+    ["edging", "Крайка ПВХ K003 Дуб Крафт золотий, 21×0,8 мм", "", "пог. м", 21.66],
+    ["facade", "МДФ Kronospan Feelness 5981 Кашемір Ultra Matt, 18 мм", "Kronospan", "м²", 2689],
+    ["facade", "МДФ Kronospan Feelness 8685 Білий сніг Ultra Matt, 18 мм", "Kronospan", "м²", 2599],
+    ["countertop", "Стільниця Kronospan K201 RS Бетон темно-сірий, 600×38 мм", "Kronospan", "пог. м", 1650],
+    ["countertop", "Стільниця Kronospan K349 RT Шовковий камінь, 635×38 мм", "Kronospan", "пог. м", 1767],
+    ["countertop", "Стільниця Kronospan K003 FP Дуб Крафт золотий, 635×38 мм", "Kronospan", "пог. м", 1767],
+    ["countertop", "Стільниця Kronospan K551 SU Калакатта Олімпус, 900×38 мм", "Kronospan", "пог. м", 2686],
+    ["fasteners", "Конфірмат Muller 7×50 мм", "Muller", "шт", 2.18],
+    ["fasteners", "Шкант бук 8×30 мм", "Muller", "шт", 0.4],
+    ["hardware", "Завіса Clip-On 105° накладна з дотягувачем 3D, Profi Line", "Muller", "шт", 72.12],
+    ["hardware", "Завіса Clip-On 105° напівнакладна з дотягувачем 3D, Profi Line", "Muller", "шт", 74.28],
+    ["hardware", "Завіса Clip-On 105° внутрішня з дотягувачем 3D, Profi Line", "Muller", "шт", 74.28],
+    ["hardware", "Завіса Clip-On 45° кутова з дотягувачем 3D, Profi Line", "Muller", "шт", 126.3],
+    ["hardware", "Завіса Clip-On 105° накладна з дотягувачем", "Muller", "шт", 37.44],
+    ["hardware", "Напрямні прихованого монтажу SC 450 мм 3D, Profi Line", "Muller", "компл.", 638.04],
+    ["hardware", "Напрямні прихованого монтажу SC 500 мм 3D, Profi Line", "Muller", "компл.", 662.4],
+    ["hardware", "Напрямні прихованого монтажу SC 450 мм 3D", "Muller", "компл.", 550.62],
+    ["hardware", "Напрямні прихованого монтажу SC 350 мм 3D", "Muller", "компл.", 486.36],
   ] as const
 ).map(([groupId, name, maker, unit, price], index) => ({
   id: `m${index}`,
@@ -143,36 +167,50 @@ export const projectLabel = (project: Pick<Project, "number" | "client" | "produ
 const rows = (id: string, list: [groupId: string, name: string, quantity: number, unit: string][]): SpecRow[] =>
   list.map(([groupId, name, quantity, unit], index) => ({ id: `${id}-s${index}`, groupId, name, quantity, unit }));
 
-type ProjectDraft = Omit<Project, "estimate" | "extras" | "clientId" | "clientPrice" | "managerId" | "adminEditedOn">;
+type ProjectDraft = Omit<Project, "estimate" | "extras" | "clientId" | "clientPrice" | "managerId" | "adminEditedOn" | "changes">;
 
 /** Вартість, яку менеджер назвав клієнтові (вигадана, трохи вища за розрахункову). */
 const MOCK_CLIENT_PRICES: Record<string, number> = {
-  kukhnya: 110000,
-  shafa: 30000,
-  peredpokiy: 8800,
-  garderobna: 16500,
-  tumba: 6500,
-  komod: 9000,
+  kukhnya: 108000,
+  shafa: 39500,
+  peredpokiy: 20500,
+  garderobna: 32000,
+  tumba: 11800,
+  komod: 13500,
+  kupe: 42000,
 };
 
 /** Кошторис прикладу: що менеджер заклав до детальної розробки. Кількості трохи інші, ніж у конструктора. */
 const MOCK_ESTIMATES: Record<string, [groupId: string, name: string, quantity: number, unit: string][]> = {
+  kupe: [
+    ["boards", "ДСП Kronospan K003 PW Дуб Крафт золотий, 18 мм", 4, "лист"],
+    ["boards", "ДВП (ЛХДФ) Kronospan 0110 PE Білий, 3 мм", 1, "лист"],
+    ["edging", "Крайка ПВХ K003 Дуб Крафт золотий, 21×0,8 мм", 60, "пог. м"],
+    ["fasteners", "Конфірмат Muller 7×50 мм", 120, "шт"],
+    ["hardware", "Напрямні прихованого монтажу SC 450 мм 3D", 3, "компл."],
+  ],
   garderobna: [
-    ["boards", "ДСП Білий, 18 мм", 16, "м²"],
-    ["boards", "ДВП Білий, 3 мм", 5, "м²"],
-    ["edging", "Крайка ПВХ Біла, 0,8 мм", 70, "пог. м"],
-    ["fasteners", "Конфірмат", 200, "шт"],
-    ["hardware", "Штанга з кріпленням", 4, "шт"],
+    ["boards", "ДСП Kronospan 0110 SM Білий корпусний, 18 мм", 3, "лист"],
+    ["boards", "ДВП (ЛХДФ) Kronospan 0110 PE Білий, 3 мм", 1, "лист"],
+    ["edging", "Крайка ПВХ 0110 SM Білий, 21×0,8 мм", 70, "пог. м"],
+    ["fasteners", "Конфірмат Muller 7×50 мм", 200, "шт"],
   ],
   tumba: [
-    ["boards", "ДСП Графіт, 18 мм", 3.5, "м²"],
-    ["edging", "Крайка ПВХ Дуб, 2 мм", 14, "пог. м"],
-    ["hardware", "Напрямні прихованого монтажу, 450 мм", 2, "компл."],
+    ["boards", "ДСП Kronospan 0164 PE Антрацит, 18 мм", 1, "лист"],
+    ["edging", "Крайка ПВХ 0164 PE Антрацит, 21×0,8 мм", 14, "пог. м"],
+    ["hardware", "Напрямні прихованого монтажу SC 450 мм 3D, Profi Line", 2, "компл."],
   ],
   komod: [
-    ["boards", "ДСП Дуб, 18 мм", 4, "м²"],
-    ["edging", "Крайка ПВХ Дуб, 2 мм", 22, "пог. м"],
-    ["hardware", "Напрямні прихованого монтажу, 450 мм", 4, "компл."],
+    ["boards", "ДСП Kronospan 3025 PR Дуб Сонома світлий, 18 мм", 1, "лист"],
+    ["edging", "Крайка ПВХ 3025 Дуб Сонома світлий, 21×0,6 мм", 22, "пог. м"],
+    ["hardware", "Напрямні прихованого монтажу SC 450 мм 3D, Profi Line", 4, "компл."],
+  ],
+};
+/** Приклад: після авансу менеджер додав третій ящик і підняв вартість для клієнта. */
+const MOCK_CHANGES: Record<string, ChangeNote[]> = {
+  kupe: [
+    { id: "kupe-c0", date: "", author: "Менеджер", key: "row:kupe-e-s4", label: "Кошторис: Напрямні прихованого монтажу SC 450 мм 3D", from: "2 компл.", to: "3 компл." },
+    { id: "kupe-c1", date: "", author: "Менеджер", key: "clientPrice", label: "Вартість для клієнта", from: "40 000 грн", to: "42 000 грн" },
   ],
 };
 const MOCK_EXTRAS: Record<string, [name: string, amount: number][]> = {
@@ -188,12 +226,12 @@ export const MOCK_CLIENTS: Client[] = [
   { id: "c-bondar", name: "Бондар", phone: "066 000 00 05", address: "с. Зразкове, вул. Садова, 7", floor: null },
 ];
 
-/** Кошторис зі специфікації прикладу: менеджер заклав із запасом (округлено вгору). */
+/** Кошторис зі специфікації прикладу: менеджер заклав із запасом (округлено вгору); листи ДСП і ДВП конструктор уже рахує цілими. */
 const roughly = (id: string, spec: SpecRow[]): SpecRow[] =>
   spec.map((row, index) => ({
     ...row,
     id: `${id}-e${index}`,
-    quantity: row.quantity === null ? null : row.unit === "м²" ? Math.ceil(row.quantity * 1.1) : Math.ceil(row.quantity * 1.05),
+    quantity: row.quantity === null ? null : row.unit === "лист" ? row.quantity : row.unit === "м²" ? Math.ceil(row.quantity * 1.1) : Math.ceil(row.quantity * 1.05),
   }));
 
 function withEstimate(project: ProjectDraft): Project {
@@ -206,12 +244,16 @@ function withEstimate(project: ProjectDraft): Project {
     clientPrice: MOCK_CLIENT_PRICES[project.id] ?? null,
     managerId: "", // підставляється разом із людьми прикладу
     adminEditedOn: null,
+    changes: MOCK_CHANGES[project.id] ?? [],
   };
 }
 
 /** Приклади. Дати рахуються від понеділка поточного тижня. */
 export function mockProjects(week: string): Project[] {
-  return mockDrafts(week).map(withEstimate);
+  // Зміни прикладу — наступного дня після авансу.
+  return mockDrafts(week)
+    .map(withEstimate)
+    .map((project) => ({ ...project, changes: project.changes.map((change) => ({ ...change, date: addDays(week, 1) })) }));
 }
 
 function mockDrafts(week: string): ProjectDraft[] {
@@ -229,16 +271,15 @@ function mockDrafts(week: string): ProjectDraft[] {
       dueOn: day(16),
       payments: paid("kukhnya", [-35, 40000]),
       spec: rows("kukhnya", [
-        ["boards", "ДСП Білий, 18 мм", 14.6, "м²"],
-        ["boards", "ДВП Білий, 3 мм", 4.2, "м²"],
-        ["edging", "Крайка ПВХ Біла, 0,8 мм", 62, "пог. м"],
-        ["facade", "МДФ фарбований, 19 мм", 7.8, "м²"],
-        ["countertop", "Компакт-плита кремова, 12 мм", 3.4, "м²"],
-        ["fasteners", "Конфірмат", 180, "шт"],
-        ["fasteners", "Шкант", 84, "шт"],
-        ["hardware", "Напрямні прихованого монтажу, 450 мм", 10, "компл."],
-        ["hardware", "Завіси з доводчиком", 14, "шт"],
-        ["hardware", "Ніжки 100 мм", 32, "шт"],
+        ["boards", "ДСП Kronospan 0110 SM Білий корпусний, 18 мм", 3, "лист"],
+        ["boards", "ДВП (ЛХДФ) Kronospan 0110 PE Білий, 3 мм", 1, "лист"],
+        ["edging", "Крайка ПВХ 0110 SM Білий, 21×0,8 мм", 62, "пог. м"],
+        ["facade", "МДФ Kronospan Feelness 5981 Кашемір Ultra Matt, 18 мм", 7.8, "м²"],
+        ["countertop", "Стільниця Kronospan K349 RT Шовковий камінь, 635×38 мм", 3.4, "пог. м"],
+        ["fasteners", "Конфірмат Muller 7×50 мм", 180, "шт"],
+        ["fasteners", "Шкант бук 8×30 мм", 84, "шт"],
+        ["hardware", "Напрямні прихованого монтажу SC 450 мм 3D, Profi Line", 10, "компл."],
+        ["hardware", "Завіса Clip-On 105° накладна з дотягувачем 3D, Profi Line", 14, "шт"],
       ]),
     },
     {
@@ -250,12 +291,11 @@ function mockDrafts(week: string): ProjectDraft[] {
       dueOn: day(23),
       payments: paid("shafa", [-21, 10000]),
       spec: rows("shafa", [
-        ["boards", "ДСП Дуб, 18 мм", 9.2, "м²"],
-        ["boards", "ДВП Білий, 3 мм", 2.8, "м²"],
-        ["facade", "МДФ фарбований, 19 мм", 3.1, "м²"],
-        ["fasteners", "Конфірмат", 48, "шт"],
-        ["hardware", "Завіси з доводчиком", 9, "шт"],
-        ["hardware", "Штанга з кріпленням", 2, "шт"],
+        ["boards", "ДСП Kronospan 3025 PR Дуб Сонома світлий, 18 мм", 2, "лист"],
+        ["boards", "ДВП (ЛХДФ) Kronospan 0110 PE Білий, 3 мм", 1, "лист"],
+        ["facade", "МДФ Kronospan Feelness 5981 Кашемір Ultra Matt, 18 мм", 3.1, "м²"],
+        ["fasteners", "Конфірмат Muller 7×50 мм", 48, "шт"],
+        ["hardware", "Завіса Clip-On 105° накладна з дотягувачем 3D, Profi Line", 9, "шт"],
       ]),
     },
     {
@@ -267,11 +307,11 @@ function mockDrafts(week: string): ProjectDraft[] {
       dueOn: day(-1),
       payments: paid("peredpokiy", [-42, 3000], [-7, 2000]),
       spec: rows("peredpokiy", [
-        ["boards", "ДСП Дуб, 18 мм", 6.4, "м²"],
-        ["boards", "ДВП Білий, 3 мм", 1.5, "м²"],
-        ["edging", "Крайка ПВХ Дуб, 2 мм", 28, "пог. м"],
-        ["fasteners", "Конфірмат", 32, "шт"],
-        ["hardware", "Завіси з доводчиком", 6, "шт"],
+        ["boards", "ДСП Kronospan 3025 PR Дуб Сонома світлий, 18 мм", 2, "лист"],
+        ["boards", "ДВП (ЛХДФ) Kronospan 0110 PE Білий, 3 мм", 1, "лист"],
+        ["edging", "Крайка ПВХ 3025 Дуб Сонома світлий, 21×0,6 мм", 28, "пог. м"],
+        ["fasteners", "Конфірмат Muller 7×50 мм", 32, "шт"],
+        ["hardware", "Завіса Clip-On 105° накладна з дотягувачем 3D, Profi Line", 6, "шт"],
       ]),
     },
     {
@@ -302,6 +342,17 @@ function mockDrafts(week: string): ProjectDraft[] {
       acceptedOn: day(-30),
       dueOn: day(6),
       payments: paid("komod", [-30, 6000]),
+      spec: [],
+    },
+    {
+      // Аванс уже внесено, прийом ще не завершено: менеджер ще може змінювати проект.
+      id: "kupe",
+      number: "244",
+      client: "Мороз",
+      product: "Шафа-купе",
+      acceptedOn: day(0),
+      dueOn: day(35),
+      payments: paid("kupe", [0, 15000]),
       spec: [],
     },
   ];
