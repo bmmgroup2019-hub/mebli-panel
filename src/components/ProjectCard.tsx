@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { dueLabel, formatShort, todayIso } from "@/lib/dates";
-import { projectLabel, type Project } from "@/lib/mock-projects";
+import { DETAIL_FIELDS, isKitchen, projectLabel, type Project } from "@/lib/mock-projects";
 import { addPayment, clientOf, removePayment, isFinished, ownsStagePay, projectAccess, specAccess, useProjectAccess, updateProject, useCanManage, useCurrentUser, useIsAdmin, useWeekData } from "@/lib/week-store";
 import { ClientDialog } from "./ClientDialog";
 import { stageAccrual } from "@/lib/salary";
@@ -11,6 +11,7 @@ import { AccrualDetails } from "./AccrualDetails";
 import { ProjectEstimate } from "./ProjectEstimate";
 import { ProjectProfit } from "./ProjectProfit";
 import { ProjectSpec } from "./ProjectSpec";
+import { OrderBlank } from "./OrderBlank";
 
 const input = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink";
 const button = "rounded-md border border-line px-2.5 py-1.5 text-sm hover:bg-wash";
@@ -24,6 +25,7 @@ export function ProjectCard({ id }: { id: string }) {
   const isAdmin = useIsAdmin();
   const user = useCurrentUser();
   const [tab, setTab] = useState<Tab>("main");
+  const [blank, setBlank] = useState(false);
   if (!data) return null;
 
   const project = data.projects.find((p) => p.id === id);
@@ -63,12 +65,21 @@ export function ProjectCard({ id }: { id: string }) {
   ];
   // Працівник не бачить розрахунків, навіть якщо вкладку вибрали раніше під іншою роллю.
   const current = tabs.some((t) => t.id === tab) ? tab : "main";
+  // Бланк прийому замовлення — замість вкладок, поки його не закрили.
+  if (blank && canManage) return <OrderBlank project={project} onBack={() => setBlank(false)} />;
 
   return (
     <>
       <header>
         <Link href="/projects" className="text-sm text-ink-2 hover:underline">← Проекти</Link>
-        <h1 className="mt-1 text-xl font-semibold">{project.product}</h1>
+        <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
+          <h1 className="text-xl font-semibold">{project.product}</h1>
+          {canManage && (
+            <button type="button" className={`${button} print:hidden`} onClick={() => setBlank(true)}>
+              Друк бланка
+            </button>
+          )}
+        </div>
         <p className="text-sm text-ink-2">
           №{project.number} · {project.client}
           {!finished && ` · ${dueLabel(project.dueOn, todayIso())}`}
@@ -153,6 +164,7 @@ function MainFields({ project }: { project: Project }) {
           {item("Дата прийому", project.acceptedOn && formatShort(project.acceptedOn))}
           {item("Дата здачі", project.dueOn && formatShort(project.dueOn))}
         </dl>
+        <OrderDetailsSection project={project} canEdit={false} />
         <MyPay project={project} />
       </>
     );
@@ -225,6 +237,8 @@ function MainFields({ project }: { project: Project }) {
         <dl className="grid grid-cols-2 gap-3 text-sm">{contacts}</dl>
       </section>
 
+      <OrderDetailsSection project={project} canEdit />
+
       {clientDialog === "edit" && client && <ClientDialog client={client} onClose={() => setClientDialog(null)} />}
       {clientDialog === "new" && (
         <ClientDialog
@@ -233,6 +247,48 @@ function MainFields({ project }: { project: Project }) {
         />
       )}
     </>
+  );
+}
+
+/**
+ * Загальні відомості для бланка прийому: фасад, фурнітура, техніка (лише кухня), стіни й підготовка, особливі примітки.
+ * Хто не може змінювати — бачить лише заповнене.
+ */
+function OrderDetailsSection({ project, canEdit }: { project: Project; canEdit: boolean }) {
+  const fields = DETAIL_FIELDS.filter((field) => !field.kitchen || isKitchen(project.product));
+  if (!canEdit) {
+    const filled = fields.filter((field) => project.details[field.key]);
+    if (filled.length === 0) return null;
+    return (
+      <dl className="grid gap-3 rounded-lg border border-line bg-surface p-3 text-sm">
+        {filled.map((field) => (
+          <div key={field.key}>
+            <dt className="text-xs text-ink-2">{field.label}</dt>
+            <dd className="whitespace-pre-line">{project.details[field.key]}</dd>
+          </div>
+        ))}
+      </dl>
+    );
+  }
+  return (
+    <section className="grid gap-2 rounded-lg border border-line bg-surface p-3">
+      <h2 className="text-sm font-semibold">Відомості для бланка</h2>
+      {fields.map((field) => (
+        <Field key={field.key} label={field.label}>
+          <textarea
+            key={project.details[field.key]}
+            rows={2}
+            defaultValue={project.details[field.key]}
+            placeholder={field.placeholder}
+            className={input}
+            onBlur={(event) => {
+              const value = event.target.value.trim();
+              if (value !== project.details[field.key]) updateProject(project.id, { details: { ...project.details, [field.key]: value } });
+            }}
+          />
+        </Field>
+      ))}
+    </section>
   );
 }
 

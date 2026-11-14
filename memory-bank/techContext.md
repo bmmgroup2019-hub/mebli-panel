@@ -2,7 +2,7 @@
 
 ## Стек
 - Next.js 16 (App Router, TypeScript, `src/`), React 19, Tailwind 4. Ця версія Next.js відрізняється від старіших: перед кодом дивись `node_modules/next/dist/docs/`.
-- Пакети Supabase й PGlite встановлено, у сайті поки не використовуються.
+- Пакети Supabase встановлено, у сайті поки не використовуються (PGlite прибрано 2026-11-14).
 
 ## Запуск
 `npm.cmd run dev` → http://localhost:3000. У застосунку Claude: конфігурація `panel` у `.claude/launch.json`. Якщо сервер уже запущено з іншої сесії (друга копія падає з «Another next dev server is already running»), відкривати `preview_start` з `url` http://localhost:3000.

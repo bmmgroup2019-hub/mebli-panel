@@ -39,7 +39,8 @@ export type StageStatus = "todo" | "wip" | "done";
 export type SpecGroup = { id: string; name: string };
 /** Стан закупки рядка специфікації: замовлено або куплено (порожньо — ще ні). */
 export type PurchaseStatus = "ordered" | "bought";
-export type SpecRow = { id: string; groupId: string; name: string; quantity: number | null; unit: string; purchase?: PurchaseStatus };
+/** note — довільна примітка до рядка для уточнень (колір кромки, розмір, у кого замовити тощо). */
+export type SpecRow = { id: string; groupId: string; name: string; quantity: number | null; unit: string; note?: string; purchase?: PurchaseStatus };
 
 /** `final` — доплату внесено після завершення виробництва (аванс до передачі його не має). */
 export type Payment = { id: string; date: string; amount: number; final?: boolean };
@@ -55,6 +56,23 @@ export type ChangeNote = { id: string; date: string; author: string; key: string
 
 /** Замовник: окремий запис, проекти посилаються на нього. Поверх — для заноски. */
 export type Client = { id: string; name: string; phone: string; address: string; floor: number | null };
+
+/** Загальні відомості про замовлення для бланка прийому: що домовились із замовником. */
+export type OrderDetails = { facade: string; hardware: string; appliances: string; walls: string; notes: string };
+
+/** Поля відомостей у порядку показу. kitchen — лише для кухонь (техніка). */
+export const DETAIL_FIELDS: { key: keyof OrderDetails; label: string; placeholder: string; kitchen?: boolean }[] = [
+  { key: "facade", label: "Фасад", placeholder: "Матеріал, колір, фрезерування, ручки…" },
+  { key: "hardware", label: "Фурнітура", placeholder: "Завіси, напрямні, підйомники, виробник…" },
+  { key: "appliances", label: "Техніка", placeholder: "Модель і розміри: духовка, варильна, витяжка, мийка, посудомийка, холодильник…", kitchen: true },
+  { key: "walls", label: "Стіни й підготовка до монтажу", placeholder: "Рівність стін, кути, що має зробити замовник до монтажу…" },
+  { key: "notes", label: "Особливі примітки", placeholder: "Усе, що треба врахувати" },
+];
+
+export const EMPTY_DETAILS: OrderDetails = { facade: "", hardware: "", appliances: "", walls: "", notes: "" };
+
+/** Кухня за назвою виробу: для неї в бланку є техніка. */
+export const isKitchen = (product: string) => /кух/i.test(product);
 
 export type Project = {
   id: string;
@@ -72,6 +90,7 @@ export type Project = {
   managerId: string; // менеджер, який створив проект: лише він (і адміністратор) його змінює
   adminEditedOn: string | null; // день, коли адміністратор востаннє змінив чужий проект
   changes: ChangeNote[]; // зміни після авансу, щоб погодити їх із замовником
+  details: OrderDetails; // загальні відомості для бланка прийому
 };
 
 export const MOCK_UNITS = ["м²", "лист", "пог. м", "шт", "компл."];
@@ -167,7 +186,7 @@ export const projectLabel = (project: Pick<Project, "number" | "client" | "produ
 const rows = (id: string, list: [groupId: string, name: string, quantity: number, unit: string][]): SpecRow[] =>
   list.map(([groupId, name, quantity, unit], index) => ({ id: `${id}-s${index}`, groupId, name, quantity, unit }));
 
-type ProjectDraft = Omit<Project, "estimate" | "extras" | "clientId" | "clientPrice" | "managerId" | "adminEditedOn" | "changes">;
+type ProjectDraft = Omit<Project, "estimate" | "extras" | "clientId" | "clientPrice" | "managerId" | "adminEditedOn" | "changes" | "details">;
 
 /** Вартість, яку менеджер назвав клієнтові (вигадана, трохи вища за розрахункову). */
 const MOCK_CLIENT_PRICES: Record<string, number> = {
@@ -245,6 +264,7 @@ function withEstimate(project: ProjectDraft): Project {
     managerId: "", // підставляється разом із людьми прикладу
     adminEditedOn: null,
     changes: MOCK_CHANGES[project.id] ?? [],
+    details: { ...EMPTY_DETAILS },
   };
 }
 

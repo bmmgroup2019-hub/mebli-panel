@@ -16,8 +16,10 @@ import {
 
 const input = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink";
 const button = "rounded-md border border-line px-2.5 py-1.5 text-sm hover:bg-wash";
-const columns = "grid grid-cols-[minmax(0,1fr)_96px_auto] gap-1.5 sm:grid-cols-[minmax(0,1fr)_64px_96px_auto]";
+const columns = "grid grid-cols-[minmax(0,1fr)_96px_auto] gap-1.5 sm:grid-cols-[minmax(0,1fr)_64px_80px_minmax(0,0.45fr)_auto]";
 const nameCell = "col-span-3 sm:col-span-1";
+// На телефоні примітка — окремим рядком під кількістю, на комп'ютері — стовпчиком перед «×».
+const noteCell = "order-last col-span-3 sm:order-none sm:col-span-1";
 
 /** Текст із кількості: порожнє поле або не число дає null. */
 function parseQuantity(value: string) {
@@ -135,6 +137,7 @@ function GroupBlock({
             <tr>
               <th>Найменування</th>
               <th>Кількість</th>
+              <th>Примітка</th>
               {purchase && <th>Закупка</th>}
             </tr>
           </thead>
@@ -148,6 +151,7 @@ function GroupBlock({
                 <td className="whitespace-nowrap p-2 text-right align-top tabular-nums">
                   {row.quantity === null ? "" : row.quantity.toLocaleString("uk-UA")} {findMaterial(materials, row.name)?.unit ?? row.unit}
                 </td>
+                <td className="p-2 align-top text-xs text-ink-2">{row.note}</td>
                 {purchase && (
                   <td className="w-px whitespace-nowrap p-2 text-right print:hidden">
                     <Purchase projectId={project.id} row={row} canMark={purchase.canMark} />
@@ -216,6 +220,7 @@ function AddRow({
           name: material?.name ?? name,
           quantity: parseQuantity(String(values.get("quantity") ?? "")),
           unit: material?.unit ?? String(values.get("unit") ?? units[0] ?? ""),
+          note: String(values.get("note") ?? "").trim() || undefined,
         }, list);
         form.reset();
         setTyped("");
@@ -239,6 +244,7 @@ function AddRow({
           {units.map((unit) => <option key={unit}>{unit}</option>)}
         </select>
       )}
+      <input name="note" aria-label={`Примітка до нового матеріалу: ${group.name}`} placeholder="Примітка" className={`${input} ${noteCell}`} />
       <button type="submit" className={button}>Додати</button>
     </form>
   );
@@ -315,6 +321,16 @@ function EditRow({
           {[...new Set([...units, row.unit])].map((unit) => <option key={unit}>{unit}</option>)}
         </select>
       )}
+      <input
+        aria-label={`Примітка: ${row.name}`}
+        defaultValue={row.note ?? ""}
+        placeholder="Примітка"
+        className={`${input} ${noteCell}`}
+        onBlur={(event) => {
+          const note = event.target.value.trim();
+          if (note !== (row.note ?? "")) updateSpecRow(projectId, row.id, { note: note || undefined }, list);
+        }}
+      />
       <button
         type="button"
         aria-label={`Прибрати: ${row.name}`}
@@ -324,7 +340,7 @@ function EditRow({
         ×
       </button>
       {(!known || cost || (purchase && (purchase.canMark || row.purchase))) && (
-        <p className="col-span-3 -mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-2 sm:col-span-4">
+        <p className="order-last col-span-3 -mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-2 sm:col-span-5">
           {cost ? (
             <RowCost row={row} material={material} />
           ) : (

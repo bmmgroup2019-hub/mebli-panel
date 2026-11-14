@@ -24,11 +24,6 @@
   --warning: #f59e0b;
   --critical: #f26b6b;
   --stage-now: #3b82f6;
-  --stage-zamir: #3987e5;
-  --stage-proekt: #d95926;
-  --stage-materialy: #199e70;
-  --stage-vyrobnytstvo: #c98500;
-  --stage-montazh: #d55181;
 }
 
 @theme inline {
@@ -54,7 +49,7 @@
   --font-mono: var(--font-fira-code), ui-monospace, Consolas, monospace;
 }
 
-/* Друкується лише специфікація, завжди на білому. */
+/* Друкується лише специфікація або бланк прийому, завжди на білому. */
 @media print {
   :root {
     color-scheme: light;
@@ -69,10 +64,13 @@
     visibility: hidden;
   }
   #print-spec,
-  #print-spec * {
+  #print-spec *,
+  #print-blank,
+  #print-blank * {
     visibility: visible;
   }
-  #print-spec {
+  #print-spec,
+  #print-blank {
     position: absolute;
     inset: 0 0 auto;
   }

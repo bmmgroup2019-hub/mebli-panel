@@ -8,6 +8,12 @@ import { useIsAdmin, useWeekData, type WeekData } from "@/lib/week-store";
 /** Розділи панелі. count — що показати на картці меню. */
 export const ADMIN_SECTIONS = [
   {
+    href: "/admin/company",
+    label: "Фірма",
+    about: "Назва, телефон і адреса для шапки бланків.",
+    count: (d: WeekData) => d.company.name || "Не вказано",
+  },
+  {
     href: "/admin/people",
     label: "Люди",
     about: "Логіни, паролі, ролі й етапи, на яких працює людина.",

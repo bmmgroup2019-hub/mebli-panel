@@ -13,6 +13,8 @@ import {
   mockProjects,
   projectLabel,
   type ChangeNote,
+  DETAIL_FIELDS,
+  EMPTY_DETAILS,
   type Client,
   type Material,
   type Project,
@@ -67,7 +69,12 @@ export type IssueType = { id: string; name: string };
  */
 export type Pricing = { marginPercent: number; floorRate: number | null; floorStageId: StageId | null };
 
+/** Реквізити фірми для шапки бланків. Веде адміністратор. */
+/** logo — зображення логотипу (data URL, зменшене до 400 px), порожньо — без логотипу. */
+export type Company = { name: string; phone: string; address: string; extra: string; installTerms: string; logo: string };
+
 export type WeekData = {
+  company: Company;
   stages: Stage[];
   issueTypes: IssueType[];
   specGroups: SpecGroup[];
@@ -84,7 +91,7 @@ export type WeekData = {
   sessionId: string | null;
 };
 
-const KEY = "panel-week-v38";
+const KEY = "panel-week-v43";
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 function seed(): WeekData {
@@ -103,7 +110,16 @@ function seed(): WeekData {
     login: `zbirka${n}`,
     password: "1111",
     role: "worker",
-    stages: n === 3 ? ["assembly", "install"] : ["assembly"],
+    stages: ["assembly"],
+  }));
+  // Монтажники — окремі люди, не складальники.
+  const installers: Person[] = [1, 2].map((n) => ({
+    id: newId(),
+    name: `Монтажник ${n}`,
+    login: `montazh${n}`,
+    password: "7777",
+    role: "worker",
+    stages: ["install"],
   }));
   const item = (
     order: string,
@@ -139,6 +155,8 @@ function seed(): WeekData {
   ].map((id) => projectLabel(projects.find((project) => project.id === id)!));
   return {
     sessionId: null,
+    // Вигадані реквізити: справжні вписує адміністратор у розділі «Фірма».
+    company: { name: "Меблева майстерня (приклад)", phone: "000 000 00 00", address: "м. Київ, вул. Прикладна, 1", extra: "", installTerms: "", logo: "" },
     stages: MOCK_STAGES,
     issueTypes,
     specGroups: MOCK_SPEC_GROUPS,
@@ -149,7 +167,7 @@ function seed(): WeekData {
     pricing: { marginPercent: 60, floorRate: 150, floorStageId: "install" },
     clients: MOCK_CLIENTS,
     projects,
-    people: [owner, manager, manager2, constructor, cncOperator, edger, ...workers],
+    people: [owner, manager, manager2, constructor, cncOperator, edger, ...workers, ...installers],
     items: linkNext([
       // Прийом і розрахунок: тиждень прийому замовлення.
       ...projects.map((project) => {
@@ -176,7 +194,7 @@ function seed(): WeekData {
       item(hallway, "cnc", addDays(week, -21), addDays(week, -14)),
       item(hallway, "edge", addDays(week, -14), addDays(week, -14)),
       item(hallway, "assembly", addDays(week, -14), week, workers[1].id),
-      item(hallway, "install", week),
+      item(hallway, "install", week, null, installers[0].id),
     ]),
     issues: [
       issue(wardrobe, noMaterials, "Не привезли фасади, зупиниться зборка", workers[2].name),
@@ -402,7 +420,7 @@ export const nextProjectNumber = (projects: Project[]) =>
 
 /** id нового проекту або null, якщо замовника немає. Номер проставляється автоматично. */
 export function addProject(
-  fields: Omit<Project, "id" | "number" | "client" | "payments" | "spec" | "estimate" | "extras" | "clientPrice" | "managerId" | "adminEditedOn" | "changes">,
+  fields: Omit<Project, "id" | "number" | "client" | "payments" | "spec" | "estimate" | "extras" | "clientPrice" | "managerId" | "adminEditedOn" | "changes" | "details">,
 ) {
   const current = read();
   const client = current.clients.find((c) => c.id === fields.clientId);
@@ -421,6 +439,7 @@ export function addProject(
     managerId: current.sessionId ?? "",
     adminEditedOn: null,
     changes: [],
+    details: { ...EMPTY_DETAILS },
   };
   write({ ...current, projects: [...current.projects, project] });
   // Новий проект одразу стає на прийом у поточному тижні.
@@ -447,6 +466,7 @@ function changesBetween(data: WeekData, before: Project, after: Project): Change
   const clientName = (id: string) => data.clients.find((c) => c.id === id)?.name ?? "—";
   field("clientId", "Замовник", clientName(before.clientId), clientName(after.clientId));
   field("clientPrice", "Вартість для клієнта", changeMoney(before.clientPrice), changeMoney(after.clientPrice));
+  for (const { key, label } of DETAIL_FIELDS) field(`details:${key}`, label, before.details[key] || "—", after.details[key] || "—");
   // Рядки кошторису: додано, прибрано, інша кількість або назва.
   for (const row of after.estimate) {
     const old = before.estimate.find((r) => r.id === row.id);
@@ -570,6 +590,11 @@ export function addExtra(projectId: string, fields: Omit<Extra, "id">) {
 export function removeExtra(projectId: string, extraId: string) {
   const project = read().projects.find((p) => p.id === projectId);
   if (project) updateProject(projectId, { extras: project.extras.filter((extra) => extra.id !== extraId) });
+}
+
+export function updateCompany(fields: Partial<Company>) {
+  const current = read();
+  write({ ...current, company: { ...current.company, ...fields } });
 }
 
 export function updatePricing(fields: Partial<Pricing>) {
