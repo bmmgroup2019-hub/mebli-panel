@@ -15,6 +15,7 @@ import {
   issueTypeName,
   itemsOfWeek,
   removeItem,
+  startItem,
   reopenItem,
   resetWeekData,
   toggleIssue,
@@ -223,16 +224,20 @@ function WorkRow({
   const isAdmin = user?.role === "admin";
   const canManage = useCanManage();
   const data = useWeekData();
-  const mine = isAdmin || assigneeOf(item, staff) === user?.id;
+  const assignee = assigneeOf(item, staff) === user?.id;
+  const mine = isAdmin || assignee;
   // Призначати людей менеджер може лише в замовленнях своїх проектів; адміністратор — у всіх.
   const project = data?.projects.find((p) => projectLabel(p) === item.order);
   const canAssign = isAdmin || (canManage && project?.managerId === user?.id);
   const done = item.doneWeek === week;
   const doneLater = item.doneWeek !== null && item.doneWeek > week;
   const blocked = !done && data ? blockedReason(data, item) : null;
-  const locked = !mine || doneLater || Boolean(blocked) || (done && !canReopen(allItems, item));
+  const nextStarted = done && !canReopen(allItems, item);
+  const locked = !mine || doneLater || Boolean(blocked) || nextStarted;
   const note = blocked && mine
     ? blocked
+    : nextStarted && mine
+    ? "Наступний етап уже взяли в роботу: скасувати не можна"
     : doneLater
     ? `Зроблено на тижні ${isoWeek(item.doneWeek!)}`
     : !done && item.week < week
@@ -252,6 +257,26 @@ function WorkRow({
       <span className="min-w-0 flex-1 break-words">
         <span className={done ? "text-ink-2 line-through" : ""}><OrderName name={item.order} /></span>
         {note && <span className="block text-xs text-ink-2">{note}</span>}
+        {/* Взяти в роботу: після цього попередній етап уже не скасувати. */}
+        {!done && !doneLater && item.startedOn && (
+          <span className="block text-xs text-accent-ink">
+            В роботі з {item.startedOn.slice(8)}.{item.startedOn.slice(5, 7)}
+            {mine && (
+              <button type="button" className="ml-2 text-ink-2 underline hover:text-ink" onClick={() => startItem(item.id, false)}>
+                скасувати
+              </button>
+            )}
+          </span>
+        )}
+        {!done && !doneLater && !item.startedOn && assignee && !blocked && (
+          <button
+            type="button"
+            className="mt-1 block rounded border border-line px-1.5 py-0.5 text-xs hover:bg-wash"
+            onClick={() => startItem(item.id, true)}
+          >
+            Взяти в роботу
+          </button>
+        )}
         {item.adminMarkedOn && (
           <span className="block text-xs text-ink-2">Змінено адміністратором {item.adminMarkedOn.slice(8)}.{item.adminMarkedOn.slice(5, 7)}</span>
         )}

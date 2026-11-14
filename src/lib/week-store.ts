@@ -35,6 +35,7 @@ export type WorkItem = {
   doneOn: string | null; // день, коли відмітили: від нього рахується місяць зарплати
   nextId: string | null; // запис наступного етапу, створений галочкою
   assigneeId: string | null; // хто взяв замовлення
+  startedOn: string | null; // день, коли виконавець узяв замовлення в роботу (натиснув «Почати»)
   adminMarkedOn: string | null; // день, коли адміністратор відмітив або скасував чужий етап
 };
 
@@ -83,7 +84,7 @@ export type WeekData = {
   sessionId: string | null;
 };
 
-const KEY = "panel-week-v37";
+const KEY = "panel-week-v38";
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 function seed(): WeekData {
@@ -120,6 +121,7 @@ function seed(): WeekData {
     doneOn: doneWeek ? (addDays(doneWeek, 3) < today ? addDays(doneWeek, 3) : today) : null,
     nextId: null,
     assigneeId,
+    startedOn: null,
     adminMarkedOn: null,
   });
   const issueTypes: IssueType[] = ["Немає матеріалів", "Брак, перезамовити", "Інше"].map((name) => ({ id: newId(), name }));
@@ -148,7 +150,7 @@ function seed(): WeekData {
     clients: MOCK_CLIENTS,
     projects,
     people: [owner, manager, manager2, constructor, cncOperator, edger, ...workers],
-    items: [
+    items: linkNext([
       // Прийом і розрахунок: тиждень прийому замовлення.
       ...projects.map((project) => {
         const accepted = mondayOf(project.acceptedOn);
@@ -164,7 +166,8 @@ function seed(): WeekData {
       item(dressing, "project", addDays(week, -28), addDays(week, -21)),
       item(dressing, "cnc", addDays(week, -21), addDays(week, -14)),
       item(dressing, "edge", addDays(week, -14), lastWeek),
-      item(dressing, "assembly", lastWeek, null, workers[0].id),
+      // Зборку гардеробної вже почали: крайка свою галочку зняти не може.
+      { ...item(dressing, "assembly", lastWeek, null, workers[0].id), startedOn: addDays(lastWeek, 4) },
       item(chest, "project", addDays(week, -28), addDays(week, -21)),
       item(chest, "cnc", addDays(week, -21), addDays(week, -14)),
       item(chest, "edge", addDays(week, -14), lastWeek),
@@ -174,7 +177,7 @@ function seed(): WeekData {
       item(hallway, "edge", addDays(week, -14), addDays(week, -14)),
       item(hallway, "assembly", addDays(week, -14), week, workers[1].id),
       item(hallway, "install", week),
-    ],
+    ]),
     issues: [
       issue(wardrobe, noMaterials, "Не привезли фасади, зупиниться зборка", workers[2].name),
       issue(wardrobe, other, "Не підтверджено колір ручок"),
@@ -183,6 +186,17 @@ function seed(): WeekData {
       issue("", null, "Хто виходить на монтаж у суботу?"),
     ],
   };
+}
+
+/** Приклад: зроблений етап посилається на запис наступного етапу того ж замовлення, як після галочки. */
+function linkNext(items: WorkItem[]) {
+  const order = MOCK_STAGES.map((stage) => stage.id);
+  return items.map((item) => {
+    if (!item.doneWeek) return item;
+    const nextStage = order[order.indexOf(item.stage) + 1];
+    const next = items.find((i) => i.order === item.order && i.stage === nextStage);
+    return next ? { ...item, nextId: next.id } : item;
+  });
 }
 
 let data: WeekData | null = null;
@@ -761,14 +775,27 @@ export function addItem(order: string, stage: StageId, week: string) {
     doneOn: null,
     nextId: null,
     assigneeId: defaultAssignee(current, order, stage),
+    startedOn: null,
     adminMarkedOn: null,
   };
   write({ ...current, items: [...current.items, item] });
 }
 
+/** Інший виконавець ще не починав: позначка «в роботі» знімається. */
 export function assignItem(id: string, assigneeId: string | null) {
   const current = read();
-  write({ ...current, items: current.items.map((i) => (i.id === id ? { ...i, assigneeId } : i)) });
+  write({
+    ...current,
+    items: current.items.map((i) => (i.id === id ? { ...i, assigneeId, startedOn: i.assigneeId === assigneeId ? i.startedOn : null } : i)),
+  });
+}
+
+/** Виконавець узяв замовлення в роботу (або скасував це, поки етап не зроблено). */
+export function startItem(id: string, started: boolean) {
+  const current = read();
+  const item = current.items.find((i) => i.id === id);
+  if (!item || item.doneWeek || (started && blockedReason(current, item))) return;
+  write({ ...current, items: current.items.map((i) => (i.id === id ? { ...i, startedOn: started ? todayIso() : null } : i)) });
 }
 
 /** false, якщо такий логін уже зайнято. */
@@ -833,18 +860,19 @@ export function completeItem(id: string, week: string) {
   );
   const next: WorkItem | null =
     stage && !waiting
-      ? { id: newId(), order: item.order, stage, week, doneWeek: null, doneOn: null, nextId: null, assigneeId: null, adminMarkedOn: null }
+      ? { id: newId(), order: item.order, stage, week, doneWeek: null, doneOn: null, nextId: null, assigneeId: null, startedOn: null, adminMarkedOn: null }
       : null;
   const adminMarkedOn = adminMark(current, item);
   const items = current.items.map((i) =>
-    i.id === id ? { ...i, doneWeek: week, doneOn: todayIso(), nextId: next?.id ?? null, adminMarkedOn } : i,
+    i.id === id ? { ...i, doneWeek: week, doneOn: todayIso(), startedOn: i.startedOn ?? todayIso(), nextId: next?.id ?? null, adminMarkedOn } : i,
   );
   write({ ...current, items: next ? [...items, next] : items });
 }
 
-/** Скасувати можна, поки наступний етап не зроблено. */
+/** Скасувати галочку можна, поки виконавець наступного етапу не взяв замовлення в роботу (і, звісно, не зробив). */
 export function canReopen(items: WorkItem[], item: WorkItem) {
-  return !items.find((i) => i.id === item.nextId)?.doneWeek;
+  const next = items.find((i) => i.id === item.nextId);
+  return !next?.doneWeek && !next?.startedOn;
 }
 
 export function reopenItem(id: string) {
