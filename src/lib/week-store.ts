@@ -46,7 +46,7 @@ export type Person = {
   name: string;
   login: string;
   password: string; // лише для прототипу: із базою паролі тут не зберігатимуться
-  role: "admin" | "manager" | "worker";
+  role: "admin" | "manager" | "worker" | "buyer"; // buyer — закупівельник: закупки й довідник матеріалів
   stages: StageId[]; // одна людина може працювати на кількох етапах
 };
 
@@ -91,7 +91,7 @@ export type WeekData = {
   sessionId: string | null;
 };
 
-const KEY = "panel-week-v43";
+const KEY = "panel-week-v44";
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 function seed(): WeekData {
@@ -104,6 +104,7 @@ function seed(): WeekData {
   const constructor: Person = { id: newId(), name: "Конструктор", login: "konstruktor", password: "3333", role: "worker", stages: ["project"] };
   const cncOperator: Person = { id: newId(), name: "Оператор ЧПУ", login: "chpu", password: "4444", role: "worker", stages: ["cnc"] };
   const edger: Person = { id: newId(), name: "Крайкообліцювальник", login: "kraika", password: "5555", role: "worker", stages: ["edge"] };
+  const buyer: Person = { id: newId(), name: "Закупівельник", login: "zakupka", password: "8888", role: "buyer", stages: [] };
   const workers: Person[] = [1, 2, 3].map((n) => ({
     id: newId(),
     name: `Складальник ${n}`,
@@ -167,7 +168,7 @@ function seed(): WeekData {
     pricing: { marginPercent: 60, floorRate: 150, floorStageId: "install" },
     clients: MOCK_CLIENTS,
     projects,
-    people: [owner, manager, manager2, constructor, cncOperator, edger, ...workers, ...installers],
+    people: [owner, manager, manager2, constructor, cncOperator, edger, ...workers, ...installers, buyer],
     items: linkNext([
       // Прийом і розрахунок: тиждень прийому замовлення.
       ...projects.map((project) => {
@@ -263,6 +264,15 @@ export function useCanManage() {
   return role === "admin" || role === "manager";
 }
 
+/** «Закупку» ведуть адміністратор, менеджери й закупівельник. */
+export function useSeesPurchases() {
+  const role = useCurrentUser()?.role;
+  return role === "admin" || role === "manager" || role === "buyer";
+}
+
+/** Додавати матеріали й змінювати ціни в довіднику: адміністратор, менеджер, закупівельник. */
+export const useCanEditMaterials = useSeesPurchases;
+
 /**
  * «Головну», «Проекти» й «Матеріали» бачать адміністратор, менеджер і люди етапів зі специфікацією (конструктор).
  * Складальникам та іншим працівникам лишаються «Тиждень» і «Проблеми».
@@ -317,7 +327,9 @@ export function specRole(data: WeekData, user: Person, project: Project) {
 export function projectAccess(data: WeekData, user: Person | null, project: Project) {
   if (!user) return { canEdit: false, canPay: false, canPurchase: false, own: false };
   if (user.role === "admin") return { canEdit: true, canPay: true, canPurchase: true, own: project.managerId === user.id };
-  const own = user.role === "manager" && project.managerId === user.id;
+  // Закупівельник відмічає закупки в усіх проектах, решту не змінює.
+  if (user.role === "buyer") return { canEdit: false, canPay: false, canPurchase: true, own: false };
+  const own =user.role === "manager" && project.managerId === user.id;
   const order = projectLabel(project);
   const first = data.stages[0];
   const intakeDone = first ? stageStatus(data.items, order, first.id) === "done" : false;
@@ -577,6 +589,19 @@ export function setPurchase(projectId: string, rowId: string, purchase: Purchase
   });
 }
 
+/** Закупка кількох рядків одразу (наприклад, увесь матеріал на сторінці «Закупка»). */
+export function setPurchaseMany(rows: { projectId: string; rowId: string }[], purchase: PurchaseStatus | null) {
+  const current = read();
+  const marked = new Set(rows.map((r) => `${r.projectId}|${r.rowId}`));
+  write({
+    ...current,
+    projects: current.projects.map((p) => ({
+      ...p,
+      spec: p.spec.map((row) => (marked.has(`${p.id}|${row.id}`) ? { ...row, purchase: purchase ?? undefined } : row)),
+    })),
+  });
+}
+
 export function removeSpecRow(projectId: string, rowId: string, list: RowList = "spec") {
   const project = read().projects.find((p) => p.id === projectId);
   if (project) updateProject(projectId, { [list]: project[list].filter((row) => row.id !== rowId) });
@@ -736,6 +761,20 @@ export function removeMaterial(id: string) {
 export function isFinished(data: WeekData, order: string) {
   const last = data.stages.at(-1);
   return last ? stageStatus(data.items, order, last.id) === "done" : false;
+}
+
+/**
+ * Специфікація готова до закупки: зроблено всі етапи з позначкою «Специфікація» (у прикладі «Робочий проект»),
+ * а виріб ще в роботі.
+ */
+export function specReady(data: WeekData, project: Project) {
+  const label = projectLabel(project);
+  const specStages = data.stages.filter((stage) => stage.createsSpec);
+  return (
+    specStages.length > 0 &&
+    specStages.every((stage) => stageStatus(data.items, label, stage.id) === "done") &&
+    !isFinished(data, label)
+  );
 }
 
 const stageTaken = (label: string, exceptId?: string) =>

@@ -1,6 +1,6 @@
 import { OfficeOnly } from "@/components/OfficeOnly";
 
-// Розділ не для складальників.
+// Розділ не для складальників; закупівельнику відкритий.
 export default function Layout({ children }: LayoutProps<"/materials">) {
-  return <OfficeOnly>{children}</OfficeOnly>;
+  return <OfficeOnly buyer>{children}</OfficeOnly>;
 }

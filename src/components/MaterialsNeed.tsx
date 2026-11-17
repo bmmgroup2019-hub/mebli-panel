@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { projectLabel, type Project } from "@/lib/mock-projects";
-import { isFinished, stageStatus, useWeekData, type WeekData } from "@/lib/week-store";
+import { rowsWord } from "@/lib/materials";
+import type { Project } from "@/lib/mock-projects";
+import { specReady, useWeekData } from "@/lib/week-store";
 
 type Need = {
   name: string;
@@ -12,17 +13,6 @@ type Need = {
   unknown: number; // рядків без кількості
   projects: { project: Project; quantity: number | null }[];
 };
-
-/** Специфікація готова, коли зроблено всі етапи з позначкою «Специфікація» (у прикладі «Робочий проект»). */
-function specReady(data: WeekData, project: Project) {
-  const label = projectLabel(project);
-  const specStages = data.stages.filter((stage) => stage.createsSpec);
-  return (
-    specStages.length > 0 &&
-    specStages.every((stage) => stageStatus(data.items, label, stage.id) === "done") &&
-    !isFinished(data, label)
-  );
-}
 
 const amount = (value: number) => value.toLocaleString("uk-UA", { maximumFractionDigits: 2 });
 
@@ -40,9 +30,15 @@ export function MaterialsNeed() {
   const shown = selected ? [selected] : counted;
 
   // Однакова назва й одиниця в групі складаються, без різниці у великих літерах.
+  // Куплене (відмітка «Куплено» в специфікації) не рахуємо: показуємо, що ще треба купити.
   const needs = new Map<string, Need & { groupId: string }>();
+  let boughtRows = 0;
   for (const project of shown) {
     for (const row of project.spec) {
+      if (row.purchase === "bought") {
+        boughtRows += 1;
+        continue;
+      }
       const key = `${row.groupId}|${row.name.toLowerCase()}|${row.unit}`;
       const need = needs.get(key) ?? { groupId: row.groupId, name: row.name, unit: row.unit, total: 0, unknown: 0, projects: [] };
       if (row.quantity === null) need.unknown += 1;
@@ -62,7 +58,7 @@ export function MaterialsNeed() {
     <>
       <div className="grid gap-1 text-sm">
         <p className="text-ink-2">
-          Проекти, де етап «{specStage}» зроблено, а виріб ще в роботі.
+          Проекти, де етап «{specStage}» зроблено, а виріб ще в роботі. Куплене не враховується.
         </p>
         {counted.length > 0 && (
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Проекти в потребі">
@@ -93,7 +89,17 @@ export function MaterialsNeed() {
         )}
       </div>
 
-      {groups.length === 0 && <p className="text-sm text-ink-2">Зараз немає проектів із готовою специфікацією.</p>}
+      {boughtRows > 0 && (
+        <p className="text-sm text-ink-2">
+          Уже куплено й не враховано: <span className="tabular-nums">{boughtRows}</span> {rowsWord(boughtRows)} специфікацій.
+        </p>
+      )}
+      {groups.length === 0 &&
+        (shown.length > 0 ? (
+          <p className="text-sm text-ink-2">Усе за специфікаціями вже куплено.</p>
+        ) : (
+          <p className="text-sm text-ink-2">Зараз немає проектів із готовою специфікацією.</p>
+        ))}
 
       {groups.map(({ group, list }) => (
         <section key={group.id} className="grid gap-1.5">

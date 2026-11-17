@@ -16,7 +16,7 @@ const input = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1
 const button = "rounded-md border border-line px-2.5 py-1.5 text-sm hover:bg-wash";
 const check = "flex items-center gap-1.5 text-sm text-ink";
 const LOGIN_TAKEN = "Такий логін уже є.";
-const ROLES: Record<Person["role"], string> = { worker: "Працівник", manager: "Менеджер", admin: "Адміністратор" };
+const ROLES: Record<Person["role"], string> = { worker: "Працівник", manager: "Менеджер", buyer: "Закупівельник", admin: "Адміністратор" };
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (

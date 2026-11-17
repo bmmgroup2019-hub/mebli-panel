@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { projectLabel, type Material, type Project, type PurchaseStatus, type SpecGroup, type SpecRow } from "@/lib/mock-projects";
-import { money } from "@/lib/materials";
+import { findMaterial, money } from "@/lib/materials";
 import {
   addSpecRow,
   removeSpecRow,
@@ -26,10 +26,6 @@ function parseQuantity(value: string) {
   const number = Number(value.replace(",", "."));
   return value.trim() === "" || !Number.isFinite(number) || number < 0 ? null : number;
 }
-
-/** Матеріал довідника з такою назвою, без різниці у великих літерах. */
-const findMaterial = (materials: Material[], name: string) =>
-  materials.find((m) => m.name.toLowerCase() === name.trim().toLowerCase());
 
 /**
  * Таблиця матеріалів проекту за групами. list="spec" — специфікація конструктора (технічний документ),

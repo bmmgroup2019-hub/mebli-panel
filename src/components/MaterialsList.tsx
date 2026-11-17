@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { matches, money } from "@/lib/materials";
-import { useCanManage, useWeekData, type WeekData } from "@/lib/week-store";
+import { useCanEditMaterials, useWeekData, type WeekData } from "@/lib/week-store";
 import { MaterialDialog } from "./MaterialDialog";
 import type { MaterialDraft } from "./MaterialForm";
 
@@ -21,11 +21,11 @@ function namesNotInDirectory(data: WeekData) {
 
 /**
  * Довідник для всіх: компактна таблиця з фільтрами.
- * Адміністратор і менеджер бачать вартість, додають і змінюють матеріали.
+ * Адміністратор, менеджер і закупівельник бачать вартість, додають і змінюють матеріали.
  */
 export function MaterialsList() {
   const data = useWeekData();
-  const canEdit = useCanManage();
+  const canEdit = useCanEditMaterials();
   const [query, setQuery] = useState("");
   const [groupId, setGroupId] = useState("");
   const [maker, setMaker] = useState("");

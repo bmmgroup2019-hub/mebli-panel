@@ -3,21 +3,26 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { signOut, useCanManage, useCurrentUser, useSeesOffice } from "@/lib/week-store";
+import { signOut, useCanManage, useCurrentUser, useSeesOffice, useSeesPurchases } from "@/lib/week-store";
+
+type Who = { admin: boolean; buyer: boolean; office: boolean; managers: boolean; purchases: boolean };
 
 /**
- * main — пункти, що на телефоні видно завжди; решта ховається під «Ще» («worker» — завжди видно лише складальникам).
- * office — не для складальників; managers — лише адміністратору й менеджерам.
+ * show — кому пункт видно. office — не для складальників; managers — адміністратор і менеджери;
+ * purchases — адміністратор, менеджери й закупівельник.
+ * main — чи видно пункт на телефоні завжди; решта ховається під «Ще».
  */
-const SECTIONS = [
-  { href: "/", label: "Головна", main: true, office: true },
-  { href: "/week", label: "Тиждень", main: true },
-  { href: "/issues", label: "Проблеми", main: true },
-  { href: "/projects", label: "Проекти", main: true, office: true },
-  { href: "/clients", label: "Замовники", main: false, office: true, managers: true },
-  { href: "/done", label: "Виконано", main: "worker" },
-  { href: "/materials", label: "Матеріали", main: false, office: true },
-  { href: "/admin", label: "Адмін", main: false, adminOnly: true },
+const SECTIONS: { href: string; label: string; show: (w: Who) => boolean; main: (w: Who) => boolean }[] = [
+  { href: "/", label: "Головна", show: (w) => w.office, main: () => true },
+  { href: "/week", label: "Тиждень", show: () => true, main: () => true },
+  { href: "/issues", label: "Проблеми", show: () => true, main: () => true },
+  { href: "/projects", label: "Проекти", show: (w) => w.office, main: () => true },
+  { href: "/purchases", label: "Закупка", show: (w) => w.purchases, main: (w) => w.buyer },
+  { href: "/clients", label: "Замовники", show: (w) => w.managers, main: () => false },
+  // Закупівельник не має відрядної зарплати, тож «Виконано» йому ні до чого.
+  { href: "/done", label: "Виконано", show: (w) => !w.buyer, main: (w) => !w.office },
+  { href: "/materials", label: "Матеріали", show: (w) => w.office || w.buyer, main: () => false },
+  { href: "/admin", label: "Адмін", show: (w) => w.admin, main: () => false },
 ];
 
 const tab = "rounded-md px-2 py-1.5 text-sm text-ink-2 hover:bg-wash aria-[current=page]:bg-accent-wash aria-[current=page]:font-semibold aria-[current=page]:text-accent-ink";
@@ -26,16 +31,17 @@ export function MainNav() {
   const path = usePathname();
   const user = useCurrentUser();
   const [moreOpen, setMoreOpen] = useState(false);
-  const seesOffice = useSeesOffice();
-  const canManage = useCanManage();
-  const sections = SECTIONS.filter(
-    (section) =>
-      (!section.adminOnly || user?.role === "admin") && (!section.office || seesOffice) && (!section.managers || canManage),
-  );
+  const who: Who = {
+    admin: user?.role === "admin",
+    buyer: user?.role === "buyer",
+    office: useSeesOffice(),
+    managers: useCanManage(),
+    purchases: useSeesPurchases(),
+  };
+  const sections = SECTIONS.filter((section) => section.show(who));
   const isCurrent = (href: string) => (href === "/" ? path === "/" : path.startsWith(href));
-  // Пункт «worker» на телефоні під «Ще» в офісу, щоб меню влізло в ширину.
-  const isMain = (main: boolean | string) => (main === "worker" ? !seesOffice : main);
-  const extra = sections.filter((section) => !isMain(section.main));
+  const isMain = (section: (typeof SECTIONS)[number]) => section.main(who);
+  const extra = sections.filter((section) => !isMain(section));
 
   const link = ({ href, label }: (typeof SECTIONS)[number], className: string) => (
     <Link
@@ -53,7 +59,7 @@ export function MainNav() {
     <nav aria-label="Розділи" className="border-b border-line bg-surface print:hidden">
       <div className="relative mx-auto flex w-full max-w-7xl items-center justify-between gap-x-4 px-4 py-2">
         <div className="flex gap-0.5">
-          {sections.map((section) => link(section, `${tab} ${isMain(section.main) ? "" : "hidden sm:block"}`))}
+          {sections.map((section) => link(section, `${tab} ${isMain(section) ? "" : "hidden sm:block"}`))}
           <button
             type="button"
             aria-expanded={moreOpen}
