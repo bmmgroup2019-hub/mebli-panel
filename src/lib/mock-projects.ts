@@ -1,5 +1,6 @@
 // Вигадані дані прототипу. Один виріб = один проект.
 import { addDays } from "./dates";
+import type { Pricing } from "./week-store";
 
 /**
  * Як нараховується зарплата за етап: не нараховується, відсоток від вартості всіх матеріалів замовлення
@@ -91,6 +92,7 @@ export type Project = {
   adminEditedOn: string | null; // день, коли адміністратор востаннє змінив чужий проект
   changes: ChangeNote[]; // зміни після авансу, щоб погодити їх із замовником
   details: OrderDetails; // загальні відомості для бланка прийому
+  frozen: PriceSnapshot | null; // ціни, заморожені з авансу (prices.ts); до авансу — null, рахуємо за поточними
 };
 
 export const MOCK_UNITS = ["м²", "лист", "пог. м", "шт", "компл."];
@@ -186,7 +188,7 @@ export const projectLabel = (project: Pick<Project, "number" | "client" | "produ
 const rows = (id: string, list: [groupId: string, name: string, quantity: number, unit: string][]): SpecRow[] =>
   list.map(([groupId, name, quantity, unit], index) => ({ id: `${id}-s${index}`, groupId, name, quantity, unit }));
 
-type ProjectDraft = Omit<Project, "estimate" | "extras" | "clientId" | "clientPrice" | "managerId" | "adminEditedOn" | "changes" | "details">;
+type ProjectDraft = Omit<Project, "estimate" | "extras" | "clientId" | "clientPrice" | "managerId" | "adminEditedOn" | "changes" | "details" | "frozen">;
 
 /** Вартість, яку менеджер назвав клієнтові (вигадана, трохи вища за розрахункову). */
 const MOCK_CLIENT_PRICES: Record<string, number> = {
@@ -265,6 +267,7 @@ function withEstimate(project: ProjectDraft): Project {
     adminEditedOn: null,
     changes: MOCK_CHANGES[project.id] ?? [],
     details: { ...EMPTY_DETAILS },
+    frozen: null, // заморожується в сховищі, коли є оплати
   };
 }
 
@@ -377,3 +380,15 @@ function mockDrafts(week: string): ProjectDraft[] {
     },
   ];
 }
+
+/**
+ * Знімок цін проекту з дня авансу: матеріали кошторису (копії з довідника), їхні роботи,
+ * оплата кожного етапу й налаштування вартості. on — день першої оплати.
+ */
+export type PriceSnapshot = {
+  on: string;
+  materials: Material[];
+  works: Work[];
+  pay: Record<string, StagePay>;
+  pricing: Pricing;
+};

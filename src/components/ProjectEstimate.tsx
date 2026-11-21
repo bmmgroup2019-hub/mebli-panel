@@ -2,6 +2,7 @@
 
 import { amount, money, parseNumber } from "@/lib/materials";
 import type { Project } from "@/lib/mock-projects";
+import { pricedData } from "@/lib/prices";
 import { projectCost } from "@/lib/salary";
 import { addExtra, clientOf, ownsStagePay, removeExtra, updateProject, useCurrentUser, useIsAdmin, useProjectAccess, useWeekData } from "@/lib/week-store";
 import { AccrualDetails } from "./AccrualDetails";
@@ -22,6 +23,8 @@ export function ProjectEstimate({ project }: { project: Project }) {
   const { canEdit } = useProjectAccess(project);
   if (!data) return null;
   const cost = projectCost(data, project);
+  // Націнка й заноска — заморожені з авансу, якщо аванс уже є.
+  const pricing = pricedData(data, project).pricing;
   // Лише зарплата, яка справді належить цій людині (у чужому проекті прийом — не її).
   const mine = cost.wages.filter(({ stage }) => ownsStagePay(data, user, project, stage.id));
   const carry = cost.wages.reduce((sum, { accrual }) => sum + (accrual.carry?.sum ?? 0), 0);
@@ -81,7 +84,7 @@ export function ProjectEstimate({ project }: { project: Project }) {
         <p className="text-sm">
           Поверх: <span className="font-semibold">{clientOf(data, project)?.floor ?? "не вказано"}</span>
           <span className="text-ink-2">
-            {data.pricing.floorRate ? ` · ${money(data.pricing.floorRate)} за поверх` : " · ціну за поверх не задано"} · з даних замовника («Загальне»)
+            {pricing.floorRate ? ` · ${money(pricing.floorRate)} за поверх` : " · ціну за поверх не задано"} · з даних замовника («Загальне»)
           </span>
         </p>
       </section>
@@ -92,7 +95,7 @@ export function ProjectEstimate({ project }: { project: Project }) {
           <Line label="Матеріали" value={cost.materials} note={cost.unpriced ? `без ціни рядків: ${cost.unpriced}` : undefined} />
           {isAdmin ? (
             <>
-              <Line label={`Націнка ${amount(data.pricing.marginPercent)}%`} value={cost.margin} />
+              <Line label={`Націнка ${amount(pricing.marginPercent)}%`} value={cost.margin} />
               {cost.wages.map(({ stage, accrual }) => (
                 <Line key={stage.id} label={`Зарплата: ${stage.label}`} value={accrual.total} details={<AccrualDetails accrual={accrual} />} />
               ))}

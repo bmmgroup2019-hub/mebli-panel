@@ -1,7 +1,8 @@
 // Вартість проекту й зарплата. Усе рахується від кошторису менеджера (не від специфікації конструктора):
-// якщо менеджер помилився в кошторисі, це видно всім. Рахується з поточних цін і ставок.
+// якщо менеджер помилився в кошторисі, це видно всім. До авансу — поточні ціни й ставки, з авансу — заморожені (prices.ts).
 import { projectLabel, type Project, type SpecRow } from "./mock-projects";
 import { assigneeOf, clientOf, type WeekData, type WorkItem } from "./week-store";
+import { pricedData } from "./prices";
 
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
@@ -14,6 +15,7 @@ export const projectOf = (data: WeekData, order: string): Project | undefined =>
 
 /** Вартість матеріалів кошторису: кількість × вартість за одиницю з довідника. */
 export function materialsCost(data: WeekData, project: Project | undefined) {
+  data = pricedData(data, project);
   let total = 0;
   let unpriced = 0; // рядки без кількості або без ціни в довіднику
   for (const row of project?.estimate ?? []) {
@@ -72,6 +74,7 @@ export type Accrual = {
 
 /** Скільки нараховано (або закладено у вартість) за етап замовлення. */
 export function stageAccrual(data: WeekData, project: Project | undefined, stageId: string, part: AccrualPart = "all"): Accrual {
+  data = pricedData(data, project);
   const pay = data.stages.find((stage) => stage.id === stageId)?.pay ?? { kind: "none" };
   // Заноска й роботи — за сам етап, не за здачу.
   const carry = part === "handover" ? null : carryOf(data, project, stageId);
@@ -113,6 +116,7 @@ export const accrualOf = (data: WeekData, entry: DoneEntry) =>
  * (відсотки, роботи ЧПУ й крайки, заноска) + додаткові витрати.
  */
 export function projectCost(data: WeekData, project: Project) {
+  data = pricedData(data, project);
   const materials = materialsCost(data, project);
   const margin = (materials.total * data.pricing.marginPercent) / 100;
   const wages = data.stages

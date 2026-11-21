@@ -2,18 +2,20 @@
 
 import { amount, money } from "@/lib/materials";
 import type { Project } from "@/lib/mock-projects";
+import { frozenNote, pricedData } from "@/lib/prices";
 import { projectProfit } from "@/lib/salary";
 import { useWeekData } from "@/lib/week-store";
 
 const round = (value: number) => money(Math.round(value));
 
-/** Доходи та витрати проекту: лише для адміністратора. Усе з кошторису за поточними цінами й ставками. */
+/** Доходи та витрати проекту: лише для адміністратора. Усе з кошторису: до авансу за поточними цінами й ставками, з авансу — за замороженими. */
 export function ProjectProfit({ project }: { project: Project }) {
   const data = useWeekData();
   if (!data) return null;
   if (!project.estimate.length) return <p className="text-sm text-ink-2">Кошторису ще немає: доходи й витрати порахуються, коли менеджер його складе.</p>;
 
   const { cost, income, expenses, profit, profitPercent } = projectProfit(data, project);
+  const pricing = pricedData(data, project).pricing;
 
   return (
     <>
@@ -41,8 +43,9 @@ export function ProjectProfit({ project }: { project: Project }) {
           </div>
         </dl>
         <p className="text-xs text-ink-2">
-          Націнка {amount(data.pricing.marginPercent)}% від матеріалів дає прибуток; ставки — у панелі адміністратора, розділ «Розрахунки». Рентабельність — прибуток від вартості для клієнта.
+          Націнка {amount(pricing.marginPercent)}% від матеріалів дає прибуток; ставки — у панелі адміністратора, розділ «Розрахунки». Рентабельність — прибуток від вартості для клієнта.
         </p>
+        {project.frozen && <p className="text-xs text-ink-2">{frozenNote(project.frozen)}</p>}
       </section>
     </>
   );

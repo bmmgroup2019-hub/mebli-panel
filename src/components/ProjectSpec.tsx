@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { projectLabel, type Material, type Project, type PurchaseStatus, type SpecGroup, type SpecRow } from "@/lib/mock-projects";
 import { findMaterial, money } from "@/lib/materials";
+import { frozenNote, pricedData } from "@/lib/prices";
 import {
   addSpecRow,
   removeSpecRow,
@@ -62,6 +63,7 @@ export function ProjectSpec({ project, list = "spec" }: { project: Project; list
         <div>
           <h2 className="font-semibold">{title}</h2>
           <p className="hidden text-sm print:block">{projectLabel(project)}</p>
+          {estimate && project.frozen && <p className="text-xs text-ink-2 print:hidden">{frozenNote(project.frozen)}</p>}
           {purchase && !empty && (
             <p className="text-xs text-ink-2 print:hidden">
               Закупка: куплено {bought} із {allRows.length}
@@ -82,7 +84,7 @@ export function ProjectSpec({ project, list = "spec" }: { project: Project; list
           project={project}
           group={group}
           units={data.units}
-          materials={data.materials.filter((m) => m.groupId === group.id)}
+          materials={pricedData(data, project).materials.filter((m) => m.groupId === group.id)}
           rows={allRows.filter((row) => row.groupId === group.id)}
           canEdit={canEdit}
           list={list}

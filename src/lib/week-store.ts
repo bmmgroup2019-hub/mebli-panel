@@ -26,6 +26,7 @@ import {
   type StageStatus,
   type Work,
 } from "./mock-projects";
+import { keepFrozen } from "./prices";
 
 /** Замовлення на етапі. Незроблене видно в кожному наступному тижні, поки його не відмітять. */
 export type WorkItem = {
@@ -91,8 +92,10 @@ export type WeekData = {
   sessionId: string | null;
 };
 
-const KEY = "panel-week-v44";
+const KEY = "panel-week-v45";
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+const PRICING: Pricing = { marginPercent: 60, floorRate: 150, floorStageId: "install" };
 
 function seed(): WeekData {
   const today = todayIso();
@@ -147,9 +150,12 @@ function seed(): WeekData {
     id: newId(), order, typeId: type?.id ?? null, text, author, createdOn: today, resolved: false,
   });
   // У прикладі шафа й тумба — проекти другого менеджера, решта — першого.
+  // Проекти з авансом у прикладі одразу мають заморожені ціни.
+  const prices = { materials: MOCK_MATERIALS, works: MOCK_WORKS, stages: MOCK_STAGES, pricing: PRICING };
   const projects = mockProjects(week).map((project) => ({
     ...project,
     managerId: ["shafa", "tumba"].includes(project.id) ? manager2.id : manager.id,
+    frozen: keepFrozen(prices, project),
   }));
   const [kitchen, wardrobe, hallway, dressing, stand, chest] = [
     "kukhnya", "shafa", "peredpokiy", "garderobna", "tumba", "komod",
@@ -165,7 +171,7 @@ function seed(): WeekData {
     makers: MOCK_MAKERS,
     materials: MOCK_MATERIALS,
     works: MOCK_WORKS,
-    pricing: { marginPercent: 60, floorRate: 150, floorStageId: "install" },
+    pricing: PRICING,
     clients: MOCK_CLIENTS,
     projects,
     people: [owner, manager, manager2, constructor, cncOperator, edger, ...workers, ...installers, buyer],
@@ -432,7 +438,7 @@ export const nextProjectNumber = (projects: Project[]) =>
 
 /** id нового проекту або null, якщо замовника немає. Номер проставляється автоматично. */
 export function addProject(
-  fields: Omit<Project, "id" | "number" | "client" | "payments" | "spec" | "estimate" | "extras" | "clientPrice" | "managerId" | "adminEditedOn" | "changes" | "details">,
+  fields: Omit<Project, "id" | "number" | "client" | "payments" | "spec" | "estimate" | "extras" | "clientPrice" | "managerId" | "adminEditedOn" | "changes" | "details" | "frozen">,
 ) {
   const current = read();
   const client = current.clients.find((c) => c.id === fields.clientId);
@@ -452,6 +458,7 @@ export function addProject(
     adminEditedOn: null,
     changes: [],
     details: { ...EMPTY_DETAILS },
+    frozen: null,
   };
   write({ ...current, projects: [...current.projects, project] });
   // Новий проект одразу стає на прийом у поточному тижні.
@@ -530,6 +537,8 @@ export function updateProject(id: string, fields: Partial<Omit<Project, "id">>) 
   // Інший замовник — інше ім'я в підписі.
   if (fields.clientId) next.client = current.clients.find((c) => c.id === fields.clientId)?.name ?? next.client;
   if (numberTaken(current.projects, next.number, id)) return false;
+  // З авансу ціни проекту заморожено; нові рядки кошторису заморожуються за ціною дня, коли їх додали.
+  next.frozen = keepFrozen(current, next);
   // Після авансу кожну зміну позначаємо: її треба погодити із замовником.
   if (project.payments.length > 0) next.changes = mergeChanges(project.changes, changesBetween(current, project, next), user?.name ?? "");
   const oldLabel = projectLabel(project);
