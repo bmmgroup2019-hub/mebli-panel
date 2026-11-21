@@ -57,18 +57,18 @@ export function AdminShell({ children }: { children: ReactNode }) {
     <>
       <header className="grid gap-3">
         {home ? (
-          <h1 className="text-xl font-semibold">Адміністратор</h1>
+          <h1 className="text-2xl font-semibold sm:text-3xl">Адміністратор</h1>
         ) : (
-          <Link href="/admin" className="text-sm text-ink-2 hover:underline">← Адміністратор</Link>
+          <Link href="/admin" className="w-fit text-sm text-ink-2 hover:text-ink">← Адміністратор</Link>
         )}
         {!home && (
-          <nav aria-label="Розділи адміністратора" className="flex flex-wrap gap-1 border-b border-line pb-2">
+          <nav aria-label="Розділи адміністратора" className="no-scrollbar flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg border border-line bg-surface p-1">
             {ADMIN_SECTIONS.map((section) => (
               <Link
                 key={section.href}
                 href={section.href}
                 aria-current={path === section.href ? "page" : undefined}
-                className="rounded-md px-2.5 py-1.5 text-sm text-ink-2 hover:bg-wash aria-[current=page]:bg-wash aria-[current=page]:font-semibold aria-[current=page]:text-ink"
+                className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm text-ink-2 hover:text-ink aria-[current=page]:bg-wash aria-[current=page]:font-semibold aria-[current=page]:text-ink"
               >
                 {section.label}
               </Link>
@@ -89,10 +89,17 @@ export function AdminHome() {
       <ul className="grid gap-3 sm:grid-cols-2">
         {ADMIN_SECTIONS.map((section) => (
           <li key={section.href}>
-            <Link href={section.href} className="grid h-full gap-1 rounded-lg border border-line bg-surface p-4 hover:bg-wash">
-              <span className="font-semibold">{section.label}</span>
+            <Link
+              href={section.href}
+              className="group flex h-full flex-col gap-1.5 rounded-lg border border-line bg-surface p-5 hover:border-ink-2/40 hover:bg-wash/40"
+            >
+              <span className="flex items-center justify-between gap-2 font-semibold">
+                {section.label}
+                {/* Стрілка зсувається при наведенні — видно, що плитка веде в розділ */}
+                <span aria-hidden="true" className="text-ink-2 transition-transform group-hover:translate-x-0.5 group-hover:text-accent">→</span>
+              </span>
               <span className="text-sm text-ink-2">{section.about}</span>
-              <span className="mt-1 text-sm">{section.count(data)}</span>
+              <span className="mt-auto w-fit rounded-full bg-wash px-2.5 py-1 text-xs text-ink-2">{section.count(data)}</span>
             </Link>
           </li>
         ))}

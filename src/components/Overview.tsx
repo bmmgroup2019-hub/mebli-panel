@@ -89,16 +89,18 @@ export function Overview({ data, week }: { data: WeekData; week: string }) {
     .filter((type) => type.count > 0);
 
   return (
-    <div className="grid gap-4">
-      <header className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h1 className="text-xl font-semibold">Виробництво</h1>
-          <p className="text-sm text-ink-2">Тиждень {isoWeek(week)}, {formatSpan(week, addDays(week, 6))}</p>
+    <div className="grid gap-5">
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div className="grid gap-1">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-accent">
+            Тиждень {isoWeek(week)} · {formatSpan(week, addDays(week, 6))}
+          </p>
+          <h1 className="text-2xl font-semibold sm:text-3xl">Виробництво</h1>
         </div>
         <NewProjectButton />
       </header>
 
-      <div role="group" aria-label="Стан виробництва" className="grid grid-cols-3 gap-2 lg:grid-cols-6">
+      <div role="group" aria-label="Стан виробництва" className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 xl:grid-cols-6">
         <Stat label="У роботі" value={rows.length} pressed={!active} onClick={() => setFilterKey(null)} />
         <Stat label="Проблеми" value={problems.length} warn pressed={filterKey === "problems"} onClick={toggle("problems")} />
         <Stat label="Прострочено" value={rows.filter((row) => row.overdue).length} warn pressed={filterKey === "overdue"} onClick={toggle("overdue")} />
@@ -115,20 +117,21 @@ export function Overview({ data, week }: { data: WeekData; week: string }) {
               type="button"
               aria-pressed={filterKey === type.id}
               onClick={toggle(type.id)}
-              className="rounded-md border border-line bg-surface px-2.5 py-1 text-sm hover:bg-wash aria-pressed:border-accent aria-pressed:bg-accent-wash aria-pressed:text-accent-ink"
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-sm hover:bg-wash aria-pressed:border-accent aria-pressed:bg-accent-wash aria-pressed:text-accent-ink"
             >
-              <span aria-hidden="true">⚠ </span>
-              {type.name}: {type.count}
+              <span aria-hidden="true" className="size-1.5 rounded-full bg-critical" />
+              {type.name}
+              <span className="tabular-nums text-ink-2">{type.count}</span>
             </button>
           ))}
-          <Link href="/issues" className="px-1 py-1 text-sm underline">Усі проблеми</Link>
+          <Link href="/issues" className="px-2 py-1 text-sm text-ink-2 hover:text-ink">Усі проблеми →</Link>
         </div>
       )}
 
-      <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-        <section className="grid gap-2">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        <section className="grid gap-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 className="font-semibold">
+            <h2 className="text-lg font-semibold">
               Проекти в роботі{active && `: ${active.label.toLowerCase()} (${visible.length})`}
             </h2>
             {active && (
@@ -180,23 +183,28 @@ function Stat({
   onClick?: () => void;
 }) {
   const alert = warn && value > 0;
-  const tone = alert ? "border-critical" : "border-line";
+  // Тривожна плитка — з червоною рамкою й ледь червоним фоном.
+  const tone = alert ? "border-critical/50 bg-critical/[0.06]" : "border-line bg-surface";
+  const dot = alert ? "bg-critical" : good && value > 0 ? "bg-success" : "bg-line";
   const body = (
     <>
-      <span className={`block text-2xl font-semibold tabular-nums ${good && value > 0 ? "text-success" : alert ? "text-critical" : ""}`}>{value}</span>
-      <span className="block text-xs leading-tight text-ink-2">
-        {alert && <span aria-hidden="true">⚠ </span>}
+      <span className="flex items-center gap-1.5 text-xs leading-tight text-ink-2">
+        <span aria-hidden="true" className={`size-1.5 flex-none rounded-full ${dot}`} />
         {label}
+      </span>
+      <span className={`mt-2 block text-3xl font-semibold leading-none tabular-nums ${good && value > 0 ? "text-success" : alert ? "text-critical" : ""}`}>
+        {value}
       </span>
     </>
   );
-  if (!onClick) return <div className={`rounded-lg border bg-surface p-2.5 ${tone}`}>{body}</div>;
+  const box = `rounded-lg border p-3 sm:p-4 ${tone}`;
+  if (!onClick) return <div className={box}>{body}</div>;
   return (
     <button
       type="button"
       aria-pressed={pressed}
       onClick={onClick}
-      className={`rounded-lg border bg-surface p-2.5 text-left hover:bg-wash aria-pressed:outline-2 aria-pressed:outline-accent ${tone}`}
+      className={`${box} text-left hover:border-ink-2/40 aria-pressed:border-accent aria-pressed:ring-1 aria-pressed:ring-accent`}
     >
       {body}
     </button>
@@ -217,38 +225,43 @@ function ProjectRow({ row, data, week, today }: { row: Row; data: WeekData; week
   ].filter(Boolean).join(" · ");
 
   return (
-    <li className={`rounded-lg border border-line bg-surface p-3 ${problems.length > 0 ? "border-l-4 border-l-critical" : ""}`}>
-      <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-        <span className="min-w-0 break-words font-medium">
-          {project ? <Link href={`/projects/${project.id}`} className="hover:underline">{order}</Link> : order}
+    <li
+      className={`relative overflow-hidden rounded-lg border border-line bg-surface p-3.5 transition-colors hover:border-ink-2/40 sm:p-4 ${
+        problems.length > 0 ? "before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-critical" : ""
+      }`}
+    >
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <span className="min-w-0 break-words font-semibold">
+          {project ? <Link href={`/projects/${project.id}`} className="hover:text-accent-ink">{order}</Link> : order}
         </span>
-        <span className={`text-sm ${overdue ? "font-medium text-critical" : "text-ink-2"}`}>
-          {overdue && <span aria-hidden="true">⚠ </span>}
+        <span
+          className={`rounded-full px-2 py-0.5 text-xs ${overdue ? "bg-critical/15 font-medium text-critical" : "bg-wash text-ink-2"}`}
+        >
           {project ? dueLabel(project.dueOn, today) : "Немає картки проекту"}
         </span>
       </div>
 
-      <div className="mt-1.5 flex items-center gap-2">
+      <div className="mt-2.5 flex items-center gap-3">
         <span
-          className="grid w-24 flex-none gap-0.5"
+          className="grid w-28 flex-none gap-1"
           style={{ gridTemplateColumns: `repeat(${data.stages.length}, minmax(0, 1fr))` }}
           aria-hidden="true"
         >
           {data.stages.map((stage) => {
             const status = stageStatus(data.items, order, stage.id);
             const tone = status === "done" ? "bg-success" : status === "wip" ? "bg-stage-now" : "bg-line";
-            return <span key={stage.id} className={`h-1.5 rounded-sm ${tone}`} />;
+            return <span key={stage.id} className={`h-1.5 rounded-full ${tone}`} />;
           })}
         </span>
         <span className="min-w-0 text-sm text-ink-2">{details}</span>
       </div>
 
       {problems.length > 0 && (
-        <ul className="mt-2 grid gap-0.5 text-sm">
+        <ul className="mt-3 grid gap-1 rounded-md bg-critical/[0.08] px-3 py-2 text-sm">
           {problems.map((issue) => (
             <li key={issue.id} className="break-words">
-              <span aria-hidden="true">⚠ </span>
-              {issue.typeId && <span className="font-medium">{issueTypeName(data.issueTypes, issue.typeId)}: </span>}
+              <span aria-hidden="true" className="text-critical">⚠ </span>
+              {issue.typeId && <span className="font-medium text-critical">{issueTypeName(data.issueTypes, issue.typeId)}: </span>}
               {issue.text}
             </li>
           ))}
@@ -266,19 +279,23 @@ function StageLoad({ stages, open, week }: { stages: Stage[]; open: WorkItem[]; 
   const max = Math.max(1, ...counts.map((c) => c.total));
 
   return (
-    <section className="grid gap-2 rounded-lg border border-line bg-surface p-3">
+    <section className="grid gap-3 rounded-lg border border-line bg-surface p-4">
       <h2 className="font-semibold">Завантаження етапів</h2>
-      <ul className="grid gap-2">
+      <ul className="grid gap-3">
         {counts.map(({ stage, total, carried }) => (
-          <li key={stage.id} className="grid gap-1 text-sm">
+          <li key={stage.id} className="grid gap-1.5 text-sm">
             <span className="flex items-baseline justify-between gap-2">
               {stage.label}
-              <span className="text-ink-2 tabular-nums">
-                {total}{carried > 0 && `, перенесено ${carried}`}
+              <span className="flex-none whitespace-nowrap text-ink-2 tabular-nums">
+                <span className="text-ink">{total}</span>
+                {carried > 0 && <span className="text-warning"> · перенесено {carried}</span>}
               </span>
             </span>
-            <span className="block h-1.5 rounded-sm bg-wash" aria-hidden="true">
-              <span className="block h-full rounded-sm bg-stage-now" style={{ width: `${(total / max) * 100}%` }} />
+            <span className="block h-1.5 rounded-full bg-wash" aria-hidden="true">
+              <span
+                className="block h-full rounded-full bg-gradient-to-r from-accent/50 to-accent"
+                style={{ width: `${(total / max) * 100}%` }}
+              />
             </span>
           </li>
         ))}
@@ -292,16 +309,29 @@ function People({ data, open }: { data: WeekData; open: WorkItem[] }) {
   if (people.length === 0) return null;
 
   return (
-    <section className="grid gap-2 rounded-lg border border-line bg-surface p-3">
+    <section className="grid gap-3 rounded-lg border border-line bg-surface p-4">
       <h2 className="font-semibold">Люди</h2>
-      <ul className="grid gap-1.5 text-sm">
+      <ul className="grid gap-2.5 text-sm">
         {people.map((person) => {
           const own = open.filter((item) => assigneeOf(item, data.people) === person.id);
           const numbers = [...new Set(own.map((item) => item.order.split(" · ")[0]))];
+          const initials = person.name
+            .split(/\s+/)
+            .map((word) => word[0])
+            .join("")
+            .slice(0, 2)
+            .toUpperCase();
           return (
-            <li key={person.id} className="flex items-baseline justify-between gap-2">
-              <span className="min-w-0 break-words">{person.name}</span>
-              <span className="flex-none text-ink-2">{numbers.length > 0 ? numbers.join(", ") : "Вільний"}</span>
+            <li key={person.id} className="flex items-center gap-2.5">
+              <span aria-hidden="true" className="grid size-7 flex-none place-items-center rounded-full bg-wash text-[11px] font-semibold ring-1 ring-line">
+                {initials}
+              </span>
+              <span className="min-w-0 flex-1 break-words">{person.name}</span>
+              {numbers.length > 0 ? (
+                <span className="flex-none text-right text-ink-2 tabular-nums">{numbers.join(", ")}</span>
+              ) : (
+                <span className="flex-none rounded-full bg-success/15 px-2 py-0.5 text-xs text-success">Вільний</span>
+              )}
             </li>
           );
         })}

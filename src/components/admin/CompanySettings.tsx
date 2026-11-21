@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { updateCompany, useWeekData, type Company } from "@/lib/week-store";
 
-const input = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink";
+const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
 
 const FIELDS: { key: Exclude<keyof Company, "installTerms" | "logo">; label: string; placeholder: string }[] = [
   { key: "name", label: "Назва", placeholder: "Назва фірми" },
@@ -16,7 +16,7 @@ const FIELDS: { key: Exclude<keyof Company, "installTerms" | "logo">; label: str
 function LogoField({ logo }: { logo: string }) {
   const [error, setError] = useState("");
   return (
-    <div className="grid gap-2 rounded-lg border border-line bg-surface p-3">
+    <div className="grid gap-2 rounded-lg border border-line bg-surface p-4">
       <p className="text-xs text-ink-2">Логотип</p>
       <div className="flex flex-wrap items-center gap-3">
         <div className="grid h-20 w-40 place-items-center rounded-md border border-dashed border-line bg-white p-1">
@@ -27,7 +27,7 @@ function LogoField({ logo }: { logo: string }) {
             <span className="text-xs text-black/50">Немає логотипу</span>
           )}
         </div>
-        <label className="cursor-pointer rounded-md border border-line px-2.5 py-1.5 text-sm hover:bg-wash">
+        <label className="cursor-pointer rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash">
           {logo ? "Замінити" : "Завантажити"}
           <input
             type="file"
@@ -47,7 +47,7 @@ function LogoField({ logo }: { logo: string }) {
           />
         </label>
         {logo && (
-          <button type="button" className="rounded-md border border-line px-2.5 py-1.5 text-sm hover:bg-wash" onClick={() => updateCompany({ logo: "" })}>
+          <button type="button" className="rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash" onClick={() => updateCompany({ logo: "" })}>
             Прибрати
           </button>
         )}
@@ -88,7 +88,7 @@ export function CompanySettings() {
     <section className="grid gap-3">
       <p className="text-sm text-ink-2">Ці дані друкуються в бланку прийому замовлення.</p>
       <LogoField logo={data.company.logo} />
-      <div className="grid gap-2 rounded-lg border border-line bg-surface p-3 sm:grid-cols-2">
+      <div className="grid gap-2 rounded-lg border border-line bg-surface p-4 sm:grid-cols-2">
         {FIELDS.map(({ key, label, placeholder }) => (
           <label key={key} className={`grid gap-0.5 text-xs text-ink-2 ${key === "address" || key === "extra" ? "sm:col-span-2" : ""}`}>
             {label}

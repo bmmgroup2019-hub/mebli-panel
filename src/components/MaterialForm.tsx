@@ -5,8 +5,8 @@ import { parseNumber } from "@/lib/materials";
 import type { Material } from "@/lib/mock-projects";
 import { addMaterial, removeMaterial, updateMaterial, type WeekData } from "@/lib/week-store";
 
-const field = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink";
-const button = "rounded-md border border-line px-2.5 py-1.5 text-sm hover:bg-wash";
+const field = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
+const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 const TAKEN = "Такий матеріал цього виробника в групі вже є.";
 
 export type MaterialDraft = Omit<Material, "id">;
@@ -111,7 +111,7 @@ export function MaterialForm({
         </label>
       )}
       <div className={`col-span-2 flex flex-wrap items-center gap-1.5 ${stacked ? "pt-1" : "sm:col-span-5"}`}>
-        <button type="submit" className="rounded-md bg-accent-fill px-2.5 py-1.5 text-sm font-semibold text-white hover:bg-accent-fill-hover">{material ? "Зберегти" : "Додати"}</button>
+        <button type="submit" className="rounded-lg bg-accent-fill px-3.5 py-2 text-sm font-semibold text-accent-on hover:bg-accent-fill-hover">{material ? "Зберегти" : "Додати"}</button>
         <button type="button" className={button} onClick={onDone}>Скасувати</button>
         {material && (
           <button

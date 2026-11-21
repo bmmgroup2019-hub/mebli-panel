@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, type FormEvent } from "react";
+import { useState, type CSSProperties, type FormEvent } from "react";
 import { addDays, formatShort, formatSpan, isoWeek, mondayOf, todayIso } from "@/lib/dates";
 import { projectLabel, type StageId } from "@/lib/mock-projects";
 import {
@@ -30,8 +30,8 @@ import {
   type WorkItem,
 } from "@/lib/week-store";
 
-const field = "min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm";
-const button = "rounded-md border border-line px-2.5 py-1.5 text-sm hover:bg-wash";
+const field = "min-w-0 rounded-lg border border-line px-2.5 py-1.5 text-sm";
+const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 const ORDER_LIST = "order-names";
 
 export function WeekPlan() {
@@ -45,26 +45,55 @@ function Plan({ data }: { data: WeekData }) {
   const [week, setWeek] = useState(thisWeek);
   const isAdmin = useIsAdmin();
   const items = itemsOfWeek(data.items, week);
+  const doneCount = items.filter((i) => i.doneWeek === week).length;
+  const navButton = "px-3 py-1.5 text-sm text-ink-2 hover:bg-wash hover:text-ink";
 
   return (
     <div className="grid gap-5">
       <OrderDatalist projects={data.projects} />
 
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold">Тиждень {isoWeek(week)}, {formatSpan(week, addDays(week, 6))}</h1>
-          <p className="text-sm text-ink-2">
-            Зроблено {items.filter((i) => i.doneWeek === week).length} із {items.length}
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div className="grid gap-1">
+          <p className="text-xs font-medium uppercase tracking-[0.18em] text-accent">
+            {formatSpan(week, addDays(week, 6))}
+            {week === thisWeek && " · поточний"}
           </p>
+          <h1 className="text-2xl font-semibold sm:text-3xl">Тиждень {isoWeek(week)}</h1>
+          {/* Загальний поступ тижня */}
+          <div className="mt-1 flex items-center gap-2.5 text-sm text-ink-2">
+            <span className="block h-1.5 w-32 rounded-full bg-wash" aria-hidden="true">
+              <span
+                className="block h-full rounded-full bg-success"
+                style={{ width: `${items.length ? (doneCount / items.length) * 100 : 0}%` }}
+              />
+            </span>
+            <span>
+              Зроблено <span className="text-ink tabular-nums">{doneCount}</span> із <span className="tabular-nums">{items.length}</span>
+            </span>
+          </div>
         </div>
-        <div className="flex gap-1">
-          <button type="button" className={button} aria-label="Попередній тиждень" onClick={() => setWeek(addDays(week, -7))}>←</button>
-          <button type="button" className={button} onClick={() => setWeek(thisWeek)}>Цей тиждень</button>
-          <button type="button" className={button} aria-label="Наступний тиждень" onClick={() => setWeek(addDays(week, 7))}>→</button>
+        <div className="flex overflow-hidden rounded-lg border border-line bg-surface">
+          <button type="button" className={navButton} aria-label="Попередній тиждень" onClick={() => setWeek(addDays(week, -7))}>←</button>
+          <button
+            type="button"
+            className={`${navButton} border-x border-line ${week === thisWeek ? "text-ink" : ""}`}
+            onClick={() => setWeek(thisWeek)}
+          >
+            Цей тиждень
+          </button>
+          <button type="button" className={navButton} aria-label="Наступний тиждень" onClick={() => setWeek(addDays(week, 7))}>→</button>
         </div>
       </header>
 
-      <section aria-label="Фронт робіт" className="grid gap-3 sm:grid-cols-2 xl:auto-cols-fr xl:grid-flow-col xl:grid-cols-none">
+      {/*
+        Усі етапи видно одразу, без прокрутки вбік (прохання користувача 2026-11-21):
+        телефон — одна під одною, планшет — по дві, ноутбук — по три, ПК від 1280 px — усі в один ряд рівними колонками.
+      */}
+      <section
+        aria-label="Фронт робіт"
+        style={{ "--cols": data.stages.length } as CSSProperties}
+        className="grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[repeat(var(--cols),minmax(0,1fr))] xl:gap-2"
+      >
         {data.stages.map((stage) => (
           <StageColumn
             key={stage.id}
@@ -154,35 +183,44 @@ function StageColumn({
 }) {
   const isAdmin = useIsAdmin();
   const rows = (list: WorkItem[]) => (
-    <ul className="grid gap-1.5">
+    <ul className="grid grid-cols-1 gap-1.5">
       {list.map((item) => <WorkRow key={item.id} item={item} week={week} allItems={allItems} staff={staff} />)}
     </ul>
   );
   const unassigned = items.filter((item) => !assigneeOf(item, staff));
+  const doneCount = items.filter((i) => i.doneWeek === week).length;
+  const allDone = items.length > 0 && doneCount === items.length;
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-line bg-surface p-3">
-      <h2 className="flex items-baseline justify-between gap-2 text-sm font-semibold">
-        {label}
-        <span className="font-normal text-ink-2 tabular-nums">
-          {items.filter((i) => i.doneWeek === week).length}/{items.length}
+    <div className="flex h-full min-w-0 flex-col gap-3 rounded-lg border border-line bg-surface p-3 xl:p-2">
+      <div className="grid gap-2">
+        <h2 className="flex items-center justify-between gap-2 text-sm font-semibold">
+          {label}
+          <span
+            className={`rounded-full px-2 py-0.5 text-xs font-medium tabular-nums ${allDone ? "bg-success/15 text-success" : "bg-wash text-ink-2"}`}
+          >
+            {doneCount}/{items.length}
+          </span>
+        </h2>
+        <span className="block h-1 rounded-full bg-wash" aria-hidden="true">
+          <span className="block h-full rounded-full bg-success" style={{ width: `${items.length ? (doneCount / items.length) * 100 : 0}%` }} />
         </span>
-      </h2>
+      </div>
 
       {staff.length > 0 ? (
-        <div className="grid gap-3">
+        <div className="grid grid-cols-1 gap-3">
           {staff.map((person) => {
             const own = items.filter((item) => assigneeOf(item, staff) === person.id);
             return (
-              <div key={person.id} className="grid gap-1.5">
-                <h3 className="text-xs font-semibold text-ink-2">{person.name}</h3>
+              <div key={person.id} className="grid grid-cols-1 gap-1.5">
+                <h3 className="text-[11px] font-semibold uppercase tracking-wider [overflow-wrap:anywhere] text-ink-2">{person.name}</h3>
                 {own.length > 0 ? rows(own) : <p className="text-sm text-ink-2">Немає замовлень</p>}
               </div>
             );
           })}
           {unassigned.length > 0 && (
-            <div className="grid gap-1.5">
-              <h3 className="text-xs font-semibold text-ink-2">Не призначено</h3>
+            <div className="grid grid-cols-1 gap-1.5">
+              <h3 className="text-[11px] font-semibold uppercase tracking-wider [overflow-wrap:anywhere] text-warning">Не призначено</h3>
               {rows(unassigned)}
             </div>
           )}
@@ -195,7 +233,7 @@ function StageColumn({
 
       {isAdmin && (
         <form
-          className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-line pt-2"
+          className="mt-auto grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-line pt-3 xl:grid-cols-1"
           onSubmit={(event) => {
             const { order } = takeForm(event);
             if (order) addItem(order, stage, week);
@@ -226,9 +264,10 @@ function WorkRow({
   const data = useWeekData();
   const assignee = assigneeOf(item, staff) === user?.id;
   const mine = isAdmin || assignee;
-  // Призначати людей менеджер може лише в замовленнях своїх проектів; адміністратор — у всіх.
+  // Призначати людей менеджер може лише в замовленнях своїх проектів і лише поки етап не зроблено;
+  // у зробленому етапі виконавця (а з ним і зарплату) змінює тільки адміністратор.
   const project = data?.projects.find((p) => projectLabel(p) === item.order);
-  const canAssign = isAdmin || (canManage && project?.managerId === user?.id);
+  const canAssign = isAdmin || (canManage && project?.managerId === user?.id && item.doneWeek === null);
   const done = item.doneWeek === week;
   const doneLater = item.doneWeek !== null && item.doneWeek > week;
   const blocked = !done && data ? blockedReason(data, item) : null;
@@ -245,7 +284,11 @@ function WorkRow({
       : "";
 
   return (
-    <li className="flex items-start gap-2 text-sm">
+    <li
+      className={`flex items-start gap-2.5 rounded-md border px-2.5 py-2 text-sm transition-colors xl:gap-1.5 xl:px-1.5 xl:text-[13px] ${
+        done ? "border-transparent bg-wash/50" : "border-line bg-page hover:border-ink-2/40"
+      }`}
+    >
       <input
         type="checkbox"
         className="mt-0.5 size-4 flex-none"
@@ -271,7 +314,7 @@ function WorkRow({
         {!done && !doneLater && !item.startedOn && assignee && !blocked && (
           <button
             type="button"
-            className="mt-1 block rounded border border-line px-1.5 py-0.5 text-xs hover:bg-wash"
+            className="mt-1.5 block rounded-md bg-accent-fill px-2 py-1 text-xs font-medium text-accent-on hover:bg-accent-fill-hover"
             onClick={() => startItem(item.id, true)}
           >
             Взяти в роботу
@@ -283,7 +326,7 @@ function WorkRow({
         {canAssign && staff.length > 1 && (
           <select
             aria-label={`Хто бере: ${item.order}`}
-            className="mt-1 block max-w-full rounded border border-line bg-surface px-1 py-0.5 text-xs text-ink-2"
+            className="mt-1.5 block max-w-full rounded-md border border-line bg-surface px-1.5 py-1 text-xs text-ink-2"
             value={assigneeOf(item, staff) ?? ""}
             onChange={(event) => assignItem(item.id, event.target.value || null)}
           >
@@ -296,7 +339,7 @@ function WorkRow({
         <button
           type="button"
           aria-label={`Прибрати: ${item.order}`}
-          className="px-1 text-ink-2 hover:text-ink"
+          className="-mr-0.5 flex-none px-0.5 leading-none text-ink-2 hover:text-ink"
           onClick={() => removeItem(item.id)}
         >
           ×
@@ -314,13 +357,14 @@ function IssuesSection({ issues }: { issues: Issue[] }) {
 
   return (
     <section id="issues" className="grid scroll-mt-4 gap-3">
-      <div>
-        <h1 className="text-xl font-semibold">Проблеми й питання</h1>
+      <div className="grid gap-1">
+        <p className="text-xs font-medium uppercase tracking-[0.18em] text-accent">Відкрито: {open.length}</p>
+        <h1 className="text-2xl font-semibold sm:text-3xl">Проблеми й питання</h1>
         <p className="text-sm text-ink-2">Проблеми згруповані за замовленням. Записи без замовлення — загальні питання.</p>
       </div>
 
       <form
-        className="grid gap-1.5 sm:grid-cols-[220px_180px_minmax(0,1fr)_auto]"
+        className="grid gap-1.5 rounded-lg border border-line bg-surface p-3 sm:grid-cols-[220px_180px_minmax(0,1fr)_auto]"
         onSubmit={(event) => {
           const { order, text, typeId } = takeForm(event);
           if (text) addIssue(order, order ? typeId : null, text, author);
@@ -358,18 +402,22 @@ function IssuesSection({ issues }: { issues: Issue[] }) {
 function IssueGroup({ order, issues }: { order: string; issues: Issue[] }) {
   const author = useCurrentUser()?.name ?? "";
   return (
-    <article className={`rounded-lg border border-line bg-surface ${order ? "border-l-4 border-l-critical" : ""}`}>
-      <h3 className="flex items-baseline justify-between gap-2 p-3 pb-1 text-sm font-semibold">
+    <article
+      className={`relative overflow-hidden rounded-lg border border-line bg-surface ${
+        order ? "before:absolute before:inset-y-0 before:left-0 before:w-1 before:bg-critical" : ""
+      }`}
+    >
+      <h3 className="flex items-center justify-between gap-2 p-4 pb-1 text-sm font-semibold">
         <span className="min-w-0 break-words">
-          {order ? <><span aria-hidden="true">⚠ </span><OrderName name={order} /></> : "Загальні питання"}
+          {order ? <><span aria-hidden="true" className="text-critical">⚠ </span><OrderName name={order} /></> : "Загальні питання"}
         </span>
-        <span className="font-normal text-ink-2 tabular-nums">{issues.length}</span>
+        <span className="rounded-full bg-wash px-2 py-0.5 text-xs font-medium text-ink-2 tabular-nums">{issues.length}</span>
       </h3>
       <ul className="divide-y divide-line">
         {issues.map((issue) => <IssueRow key={issue.id} issue={issue} />)}
       </ul>
       <form
-        className={`grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-line p-3 ${order ? "sm:grid-cols-[150px_minmax(0,1fr)_auto]" : ""}`}
+        className={`grid grid-cols-[minmax(0,1fr)_auto] gap-1.5 border-t border-line p-4 ${order ? "sm:grid-cols-[150px_minmax(0,1fr)_auto]" : ""}`}
         onSubmit={(event) => {
           const { text, typeId } = takeForm(event);
           if (text) addIssue(order, order ? typeId : null, text, author);
@@ -393,9 +441,9 @@ function IssueRow({ issue, showOrder }: { issue: Issue; showOrder?: boolean }) {
   const typeName = issueTypeName(useWeekData()?.issueTypes ?? [], issue.typeId);
   const meta = [showOrder && issue.order, issue.author, formatShort(issue.createdOn)].filter(Boolean).join(" · ");
   return (
-    <li className="flex items-start gap-3 px-3 py-2 text-sm">
+    <li className="flex items-start gap-3 px-4 py-2.5 text-sm">
       <span className="min-w-0 flex-1 break-words">
-        {typeName && <span className="block text-xs font-semibold text-ink-2">{typeName}</span>}
+        {typeName && <span className="mb-0.5 block text-[11px] font-semibold uppercase tracking-wider [overflow-wrap:anywhere] text-critical">{typeName}</span>}
         <span className={issue.resolved ? "text-ink-2 line-through" : ""}>{issue.text}</span>
         <span className="block text-xs text-ink-2">{meta}</span>
       </span>

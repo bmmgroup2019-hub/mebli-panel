@@ -5,18 +5,18 @@ import { amount, findMaterial, money, rowsWord } from "@/lib/materials";
 import { type Project, type PurchaseStatus, type SpecRow } from "@/lib/mock-projects";
 import { clientOf, projectAccess, setPurchaseMany, specReady, useCurrentUser, useWeekData, type WeekData } from "@/lib/week-store";
 
-const field = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink";
-const small = "rounded-md border border-line px-2 py-1 text-xs hover:bg-wash";
+const field = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
+const small = "rounded-lg border border-line bg-surface px-2.5 py-1 text-xs hover:bg-wash";
 
 const LABEL: Record<PurchaseStatus | "none", string> = { none: "Не замовлено", ordered: "Замовлено", bought: "Куплено" };
 
-/** Що показувати: «need» — ще не куплено (не замовлено й замовлено). */
+/** Що показувати: за замовчуванням усе; «need» — ще не куплено (не замовлено й замовлено). */
 const STATES = [
+  { id: "all", label: "Усі стани" },
   { id: "need", label: "Ще не куплено" },
   { id: "none", label: "Не замовлено" },
   { id: "ordered", label: "Замовлено" },
   { id: "bought", label: "Куплено" },
-  { id: "all", label: "Усі" },
 ] as const;
 type State = (typeof STATES)[number]["id"];
 
@@ -30,6 +30,22 @@ type Line = {
   price: number | null;
   sum: number | null;
 };
+
+/**
+ * Кольори станів (рішення користувача 2026-11-21: відмічене не ховати, а виділяти кольором):
+ * не замовлено — червоний, замовлено — жовтий, куплено — зелений.
+ */
+const TONE: Record<Line["status"], { pill: string; row: string; stripe: string }> = {
+  none: { pill: "border-critical/40 bg-critical/15 text-critical", row: "bg-critical/[0.05]", stripe: "border-l-critical" },
+  ordered: { pill: "border-warning/40 bg-warning/15 text-warning", row: "bg-warning/[0.06]", stripe: "border-l-warning" },
+  bought: { pill: "border-success/40 bg-success/15 text-success", row: "bg-success/[0.06]", stripe: "border-l-success" },
+};
+
+/** Загальний стан кількох рядків: є не замовлене — «none», усе куплено — «bought», інакше «ordered». */
+const overall = (lines: Line[]): Line["status"] =>
+  lines.some((line) => line.status === "none") ? "none" : lines.every((line) => line.status === "bought") ? "bought" : "ordered";
+
+const lineKey = (line: Line) => `${line.project.id}|${line.row.id}`;
 
 const statusFits = (status: Line["status"], state: State) =>
   state === "all" || (state === "need" ? status !== "bought" : status === state);
@@ -60,7 +76,9 @@ export function Purchases() {
   const data = useWeekData();
   const user = useCurrentUser();
   const [view, setView] = useState<"material" | "project">("material");
-  const [state, setState] = useState<State>("need");
+  const [state, setState] = useState<State>("all");
+  // Рядки, відмічені після вибору фільтра, лишаються на місці, навіть якщо вже не підходять під фільтр.
+  const [kept, setKept] = useState<Set<string>>(() => new Set());
   const [groupId, setGroupId] = useState("");
   const [projectId, setProjectId] = useState("");
   if (!data) return null;
@@ -88,23 +106,29 @@ export function Purchases() {
   });
   const lines = all.filter(
     (line) =>
-      statusFits(line.status, state) &&
+      (statusFits(line.status, state) || kept.has(lineKey(line))) &&
       (!groupId || line.row.groupId === groupId) &&
       (!projectId || line.project.id === projectId),
   );
   const noPrice = lines.filter((line) => line.sum === null).length;
   const canMarkAny = all.some((line) => line.canMark);
 
-  const mark = (list: Line[], status: PurchaseStatus | null) =>
+  const mark = (list: Line[], status: PurchaseStatus | null) => {
+    const marked = list.filter((line) => line.canMark);
+    setKept(new Set([...kept, ...marked.map(lineKey)]));
     setPurchaseMany(
-      list.filter((line) => line.canMark).map((line) => ({ projectId: line.project.id, rowId: line.row.id })),
+      marked.map((line) => ({ projectId: line.project.id, rowId: line.row.id })),
       status,
     );
+  };
 
   return (
     <div className="grid gap-3">
       <div className="grid gap-1.5 sm:grid-cols-3">
-        <select aria-label="Стан закупки" value={state} onChange={(e) => setState(e.target.value as State)} className={field}>
+        <select aria-label="Стан закупки" value={state} onChange={(e) => {
+          setState(e.target.value as State);
+          setKept(new Set());
+        }} className={field}>
           {STATES.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
         </select>
         <select aria-label="Група" value={groupId} onChange={(e) => setGroupId(e.target.value)} className={field}>
@@ -120,14 +144,14 @@ export function Purchases() {
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div role="group" aria-label="Вигляд" className="flex gap-0.5 rounded-md border border-line p-0.5">
+        <div role="group" aria-label="Вигляд" className="flex gap-1 rounded-lg border border-line bg-surface p-1">
           {([["material", "По матеріалах"], ["project", "По замовленнях"]] as const).map(([id, label]) => (
             <button
               key={id}
               type="button"
               aria-pressed={view === id}
               onClick={() => setView(id)}
-              className="rounded px-2.5 py-1 text-sm text-ink-2 aria-pressed:bg-accent-wash aria-pressed:font-semibold aria-pressed:text-accent-ink"
+              className="rounded-md px-3 py-1.5 text-sm text-ink-2 hover:text-ink aria-pressed:bg-wash aria-pressed:font-semibold aria-pressed:text-ink"
             >
               {label}
             </button>
@@ -170,8 +194,8 @@ function MarkAll({ lines, mark, label }: { lines: Line[]; mark: MarkFn; label: s
   if (!lines.some((line) => line.canMark)) return null;
   return (
     <div className="flex flex-wrap gap-1" role="group" aria-label={`Позначити все: ${label}`}>
-      <button type="button" className={small} onClick={() => mark(lines, "ordered")}>Замовлено</button>
-      <button type="button" className={`${small} font-semibold`} onClick={() => mark(lines, "bought")}>Куплено</button>
+      <button type="button" className={`${small} ${TONE.ordered.pill} hover:bg-warning/25`} onClick={() => mark(lines, "ordered")}>Замовлено</button>
+      <button type="button" className={`${small} ${TONE.bought.pill} font-semibold hover:bg-success/25`} onClick={() => mark(lines, "bought")}>Куплено</button>
       <button type="button" className={`${small} text-ink-2`} onClick={() => mark(lines, null)}>Скинути</button>
     </div>
   );
@@ -179,14 +203,14 @@ function MarkAll({ lines, mark, label }: { lines: Line[]; mark: MarkFn; label: s
 
 /** Відмітка одного рядка. */
 function Status({ line, mark }: { line: Line; mark: MarkFn }) {
-  const tone = line.status === "bought" ? "font-medium text-success" : line.status === "ordered" ? "text-ink" : "text-ink-2";
-  if (!line.canMark) return <span className={`text-xs ${tone}`}>{LABEL[line.status]}</span>;
+  const tone = `border font-medium ${TONE[line.status].pill}`;
+  if (!line.canMark) return <span className={`rounded-full px-2.5 py-1 text-xs ${tone}`}>{LABEL[line.status]}</span>;
   return (
     <select
       aria-label={`Закупка: №${line.project.number} ${line.row.name}`}
       value={line.status === "none" ? "" : line.status}
       onChange={(e) => mark([line], (e.target.value || null) as PurchaseStatus | null)}
-      className={`rounded border border-line bg-surface px-1 py-0.5 text-xs ${tone}`}
+      className={`rounded-full px-2.5 py-1 text-xs ${tone}`}
     >
       <option value="">{LABEL.none}</option>
       <option value="ordered">{LABEL.ordered}</option>
@@ -220,11 +244,11 @@ function ByMaterial({ lines, mark }: { lines: Line[]; mark: MarkFn }) {
       {groups.map(({ group, items }) => (
         <section key={group.id} className="grid gap-1.5">
           <h2 className="font-semibold">{group.name}</h2>
-          <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
+          <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
             {items.map((list) => {
               const first = list[0];
               return (
-                <li key={`${first.row.groupId}|${first.row.name}|${first.unit}`} className="grid gap-1.5 px-3 py-2 text-sm">
+                <li key={`${first.row.groupId}|${first.row.name}|${first.unit}`} className={`grid gap-2 border-l-4 px-4 py-3 text-sm ${TONE[overall(list)].stripe}`}>
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                     <span className="min-w-0 font-medium">{first.row.name}</span>
                     <span className="shrink-0 tabular-nums">
@@ -236,10 +260,10 @@ function ByMaterial({ lines, mark }: { lines: Line[]; mark: MarkFn }) {
                     <span>{priceText(first)} · {statusSummary(list)}</span>
                     <MarkAll lines={list} mark={mark} label={first.row.name} />
                   </div>
-                  <ul className="grid gap-1 border-l-2 border-line pl-2">
+                  <ul className="grid gap-1">
                     {list.map((line) => (
-                      <li key={`${line.project.id}|${line.row.id}`} className="flex flex-wrap items-center justify-between gap-x-3 gap-y-0.5 text-xs">
-                        <span className="min-w-0 text-ink-2">
+                      <li key={lineKey(line)} className={`flex flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-md px-2.5 py-1.5 text-xs ${TONE[line.status].row}`}>
+                        <span className="min-w-0 text-ink">
                           №{line.project.number} {line.project.product}
                           {line.row.note && <> · {line.row.note}</>}
                         </span>
@@ -287,9 +311,9 @@ function ByProject({ lines, mark, data }: { lines: Line[]; mark: MarkFn; data: W
             <p className="text-xs text-ink-2">
               {statusSummary(list)} · разом <span className="tabular-nums">{money(Math.round(sumOf(list)))}</span>
             </p>
-            <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
+            <ul className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-surface">
               {sorted.map((line) => (
-                <li key={line.row.id} className="grid gap-0.5 px-3 py-2 text-sm">
+                <li key={line.row.id} className={`grid gap-1 border-l-4 px-4 py-2.5 text-sm ${TONE[line.status].stripe} ${TONE[line.status].row}`}>
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                     <span className="min-w-0">
                       {line.row.name}

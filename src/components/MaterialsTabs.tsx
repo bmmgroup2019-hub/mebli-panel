@@ -14,7 +14,7 @@ export function MaterialsTabs() {
   const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("list");
   return (
     <>
-      <div role="tablist" aria-label="Розділи матеріалів" className="no-scrollbar flex gap-0.5 overflow-x-auto border-b border-line">
+      <div role="tablist" aria-label="Розділи матеріалів" className="no-scrollbar flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg border border-line bg-surface p-1">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -24,7 +24,7 @@ export function MaterialsTabs() {
             aria-selected={tab === t.id}
             aria-controls="materials-tab"
             onClick={() => setTab(t.id)}
-            className="-mb-px whitespace-nowrap border-b-2 border-transparent px-2.5 py-2 text-sm text-ink-2 hover:text-ink aria-selected:border-accent aria-selected:font-semibold aria-selected:text-ink"
+            className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm text-ink-2 hover:text-ink aria-selected:bg-wash aria-selected:font-semibold aria-selected:text-ink"
           >
             {t.label}
           </button>

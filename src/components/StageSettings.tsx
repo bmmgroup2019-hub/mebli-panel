@@ -3,8 +3,8 @@
 import { useState } from "react";
 import { addStage, moveStage, removeStage, updateStage, type WeekData } from "@/lib/week-store";
 
-const input = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink";
-const button = "rounded-md border border-line px-2.5 py-1.5 text-sm hover:bg-wash disabled:opacity-40";
+const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
+const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash disabled:opacity-40";
 const TAKEN = "Такий етап уже є.";
 
 /** Панель адміна: етапи виробництва, без правок коду. */

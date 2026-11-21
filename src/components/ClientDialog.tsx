@@ -5,8 +5,8 @@ import { parseNumber } from "@/lib/materials";
 import type { Client } from "@/lib/mock-projects";
 import { addClient, removeClient, updateClient, useWeekData } from "@/lib/week-store";
 
-const input = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink";
-const button = "rounded-md border border-line px-2.5 py-1.5 text-sm hover:bg-wash";
+const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
+const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 
 /** Поля замовника для форми; prefix — щоб не плутати з полями проекту. */
 export function ClientFields({ client, prefix = "" }: { client?: Client; prefix?: string }) {
@@ -57,7 +57,7 @@ export function ClientDialog({
         if (event.target === event.currentTarget) event.currentTarget.close();
       }}
       aria-labelledby="client-dialog-title"
-      className="m-auto w-[calc(100%-32px)] max-w-lg rounded-lg border border-line bg-surface p-0 text-ink backdrop:bg-black/50"
+      className="m-auto w-[calc(100%-32px)] max-w-lg rounded-2xl border border-line bg-surface p-0 text-ink shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
     >
       <div className="grid gap-3 p-4">
         <div className="flex items-start justify-between gap-3">
@@ -86,7 +86,7 @@ export function ClientDialog({
         >
           <ClientFields client={client} />
           <div className="col-span-2 flex flex-wrap items-center gap-1.5 pt-1">
-            <button type="submit" className="rounded-md bg-accent-fill px-2.5 py-1.5 text-sm font-semibold text-white hover:bg-accent-fill-hover">{client ? "Зберегти" : "Додати"}</button>
+            <button type="submit" className="rounded-lg bg-accent-fill px-3.5 py-2 text-sm font-semibold text-accent-on hover:bg-accent-fill-hover">{client ? "Зберегти" : "Додати"}</button>
             <button type="button" className={button} onClick={onClose}>Скасувати</button>
             {client && (
               <button

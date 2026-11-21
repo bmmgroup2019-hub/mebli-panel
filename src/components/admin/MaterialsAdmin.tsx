@@ -21,8 +21,8 @@ import {
   type WeekData,
 } from "@/lib/week-store";
 
-const input = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink";
-const button = "rounded-md border border-line px-2.5 py-1.5 text-sm hover:bg-wash";
+const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
+const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 
 type Tab = "groups" | "units" | "makers" | "works" | "pay" | "pricing";
 
@@ -70,7 +70,7 @@ export function MaterialsAdmin({ data, part = "materials" }: { data: WeekData; p
         <p className="text-sm text-ink-2">{about}</p>
       </div>
 
-      <div role="tablist" aria-label={title} className="no-scrollbar flex gap-0.5 overflow-x-auto border-b border-line">
+      <div role="tablist" aria-label={title} className="no-scrollbar flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg border border-line bg-surface p-1">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -81,7 +81,7 @@ export function MaterialsAdmin({ data, part = "materials" }: { data: WeekData; p
               setTab(t.id);
               setError("");
             }}
-            className="-mb-px whitespace-nowrap border-b-2 border-transparent px-2.5 py-2 text-sm text-ink-2 hover:text-ink aria-selected:border-accent aria-selected:font-semibold aria-selected:text-ink"
+            className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm text-ink-2 hover:text-ink aria-selected:bg-wash aria-selected:font-semibold aria-selected:text-ink"
           >
             {t.label} <span className="font-normal text-ink-2">{counts[t.id]}</span>
           </button>
@@ -442,7 +442,7 @@ function Pricing({ data }: { data: WeekData }) {
         Вартість проекту = матеріали кошторису + націнка + зарплата всіх етапів (відсотки, роботи ЧПУ й крайки, заноска) + додаткові
         витрати.
       </p>
-      <div className="grid gap-2 rounded-lg border border-line bg-surface p-3 text-sm">
+      <div className="grid gap-2 rounded-lg border border-line bg-surface p-4 text-sm">
         <label className="grid grid-cols-[minmax(0,1fr)_110px_auto] items-center gap-2">
           <span>Націнка виробництва від вартості матеріалів</span>
           <input
@@ -465,7 +465,7 @@ function Pricing({ data }: { data: WeekData }) {
           </p>
         )}
       </div>
-      <div className="grid gap-2 rounded-lg border border-line bg-surface p-3 text-sm">
+      <div className="grid gap-2 rounded-lg border border-line bg-surface p-4 text-sm">
         <label className="grid grid-cols-[minmax(0,1fr)_110px_auto] items-center gap-2">
           <span>Заноска, ціна за поверх</span>
           <input

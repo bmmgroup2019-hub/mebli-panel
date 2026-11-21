@@ -69,7 +69,7 @@ export function MaterialsNeed() {
                   type="button"
                   aria-pressed={(selected?.id ?? null) === option.id}
                   onClick={() => setSelectedId(option.id)}
-                  className="rounded-md border border-line px-2.5 py-1 text-sm hover:bg-wash aria-pressed:bg-wash aria-pressed:font-semibold"
+                  className="rounded-full border border-line bg-surface px-3 py-1 text-sm hover:bg-wash aria-pressed:border-accent aria-pressed:bg-accent-wash aria-pressed:font-semibold aria-pressed:text-accent-ink"
                 >
                   {option.label}
                 </button>

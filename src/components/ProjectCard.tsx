@@ -13,8 +13,10 @@ import { ProjectProfit } from "./ProjectProfit";
 import { ProjectSpec } from "./ProjectSpec";
 import { OrderBlank } from "./OrderBlank";
 
-const input = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink";
-const button = "rounded-md border border-line px-2.5 py-1.5 text-sm hover:bg-wash";
+const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
+const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
+/** Картка-розділ усередині проекту. */
+const panel = "rounded-lg border border-line bg-surface p-4";
 const money = (value: number) => `${value.toLocaleString("uk-UA")} грн`;
 
 type Tab = "main" | "estimate" | "spec" | "finance" | "profit";
@@ -70,33 +72,55 @@ export function ProjectCard({ id }: { id: string }) {
 
   return (
     <>
-      <header>
-        <Link href="/projects" className="text-sm text-ink-2 hover:underline">← Проекти</Link>
-        <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
-          <h1 className="text-xl font-semibold">{project.product}</h1>
+      <header className="grid gap-3">
+        <Link href="/projects" className="w-fit text-sm text-ink-2 hover:text-ink">← Проекти</Link>
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="grid gap-1">
+            <p className="text-xs font-medium uppercase tracking-[0.18em] text-accent">
+              №{project.number} · {project.client}
+            </p>
+            <h1 className="text-2xl font-semibold sm:text-3xl">{project.product}</h1>
+          </div>
           {canManage && (
-            <button type="button" className={`${button} print:hidden`} onClick={() => setBlank(true)}>
+            <button type="button" className={`${button} inline-flex items-center gap-2 print:hidden`} onClick={() => setBlank(true)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
+                <path d="M6 9V2h12v7M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v8H6z" />
+              </svg>
               Друк бланка
             </button>
           )}
         </div>
-        <p className="text-sm text-ink-2">
-          №{project.number} · {project.client}
-          {!finished && ` · ${dueLabel(project.dueOn, todayIso())}`}
-          {canManage && managerName && ` · менеджер: ${managerName}`}
-        </p>
-        {project.adminEditedOn && (
-          <p className="text-xs text-ink-2">Змінено адміністратором {project.adminEditedOn.split("-").reverse().join(".")}</p>
-        )}
-        {canManage && project.changes.length > 0 && (
-          <p className="text-xs text-warning">
-            Змінено після авансу {project.changes.at(-1)!.date.split("-").reverse().join(".")} — що саме, у «Кошторисі»
-          </p>
-        )}
+        {/* Мітки: строк, менеджер, позначки змін */}
+        <div className="flex flex-wrap gap-1.5 text-xs">
+          {finished ? (
+            <span className="rounded-full bg-success/15 px-2.5 py-1 text-success">Завершено</span>
+          ) : (
+            <span
+              className={`rounded-full px-2.5 py-1 ${project.dueOn && project.dueOn < todayIso() ? "bg-critical/15 text-critical" : "bg-wash text-ink-2"}`}
+            >
+              {dueLabel(project.dueOn, todayIso())}
+            </span>
+          )}
+          {canManage && managerName && <span className="rounded-full bg-wash px-2.5 py-1 text-ink-2">Менеджер: {managerName}</span>}
+          {project.adminEditedOn && (
+            <span className="rounded-full bg-wash px-2.5 py-1 text-ink-2">
+              Змінено адміністратором {project.adminEditedOn.split("-").reverse().join(".")}
+            </span>
+          )}
+          {canManage && project.changes.length > 0 && (
+            <span className="rounded-full bg-warning/15 px-2.5 py-1 text-warning">
+              Змінено після авансу {project.changes.at(-1)!.date.split("-").reverse().join(".")} — що саме, у «Кошторисі»
+            </span>
+          )}
+        </div>
         {readOnlyNote && <p className="text-xs text-ink-2">{readOnlyNote}</p>}
       </header>
 
-      <div role="tablist" aria-label="Розділи проекту" className="no-scrollbar flex gap-0.5 overflow-x-auto border-b border-line print:hidden">
+      <div
+        role="tablist"
+        aria-label="Розділи проекту"
+        className="no-scrollbar flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg border border-line bg-surface p-1 print:hidden"
+      >
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -106,10 +130,10 @@ export function ProjectCard({ id }: { id: string }) {
             aria-selected={current === t.id}
             aria-controls="project-tab"
             onClick={() => setTab(t.id)}
-            className="-mb-px whitespace-nowrap border-b-2 border-transparent px-2.5 py-2 text-sm text-ink-2 hover:text-ink aria-selected:border-accent aria-selected:font-semibold aria-selected:text-ink"
+            className="whitespace-nowrap rounded-md px-3 py-1.5 text-sm text-ink-2 hover:text-ink aria-selected:bg-wash aria-selected:font-semibold aria-selected:text-ink"
           >
             {t.label}
-            {t.note && <span className="ml-1.5 font-normal text-ink-2">{t.note}</span>}
+            {t.note && <span className="ml-1.5 rounded-full bg-page px-1.5 py-0.5 text-[11px] font-normal text-ink-2 tabular-nums">{t.note}</span>}
           </button>
         ))}
       </div>
@@ -127,7 +151,7 @@ export function ProjectCard({ id }: { id: string }) {
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <label className="grid min-w-0 gap-0.5 text-xs text-ink-2">
+    <label className="grid min-w-0 gap-1 text-xs font-medium text-ink-2">
       {label}
       {children}
     </label>
@@ -143,7 +167,7 @@ function MainFields({ project }: { project: Project }) {
 
   const item = (label: string, value: ReactNode, wide = false) => (
     <div className={wide ? "col-span-2" : ""}>
-      <dt className="text-xs text-ink-2">{label}</dt>
+      <dt className="mb-0.5 text-xs font-medium text-ink-2">{label}</dt>
       <dd>{value || "Не вказано"}</dd>
     </div>
   );
@@ -158,7 +182,7 @@ function MainFields({ project }: { project: Project }) {
   if (!canManage) {
     return (
       <>
-        <dl className="grid grid-cols-2 gap-3 rounded-lg border border-line bg-surface p-3 text-sm">
+        <dl className={`grid grid-cols-2 gap-4 ${panel} text-sm`}>
           {item("Замовник", project.client)}
           {contacts}
           {item("Дата прийому", project.acceptedOn && formatShort(project.acceptedOn))}
@@ -181,7 +205,7 @@ function MainFields({ project }: { project: Project }) {
 
   return (
     <>
-      <section className="grid gap-2 rounded-lg border border-line bg-surface p-3 sm:grid-cols-2">
+      <section className={`grid gap-3 ${panel} sm:grid-cols-2`}>
         <Field label="Номер">
           {/* Номер проставляється автоматично й не змінюється. */}
           <span className="py-1.5 text-sm font-semibold text-ink tabular-nums">№{project.number}</span>
@@ -207,7 +231,7 @@ function MainFields({ project }: { project: Project }) {
         </Field>
       </section>
 
-      <section className="grid gap-2 rounded-lg border border-line bg-surface p-3">
+      <section className={`grid gap-3 ${panel}`}>
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2">
           <Field label="Замовник">
             <select
@@ -234,7 +258,7 @@ function MainFields({ project }: { project: Project }) {
             </button>
           )}
         </div>
-        <dl className="grid grid-cols-2 gap-3 text-sm">{contacts}</dl>
+        <dl className="grid grid-cols-2 gap-4 border-t border-line pt-3 text-sm">{contacts}</dl>
       </section>
 
       <OrderDetailsSection project={project} canEdit />
@@ -260,10 +284,10 @@ function OrderDetailsSection({ project, canEdit }: { project: Project; canEdit: 
     const filled = fields.filter((field) => project.details[field.key]);
     if (filled.length === 0) return null;
     return (
-      <dl className="grid gap-3 rounded-lg border border-line bg-surface p-3 text-sm">
+      <dl className={`grid gap-4 ${panel} text-sm`}>
         {filled.map((field) => (
           <div key={field.key}>
-            <dt className="text-xs text-ink-2">{field.label}</dt>
+            <dt className="mb-0.5 text-xs font-medium text-ink-2">{field.label}</dt>
             <dd className="whitespace-pre-line">{project.details[field.key]}</dd>
           </div>
         ))}
@@ -271,8 +295,8 @@ function OrderDetailsSection({ project, canEdit }: { project: Project; canEdit: 
     );
   }
   return (
-    <section className="grid gap-2 rounded-lg border border-line bg-surface p-3">
-      <h2 className="text-sm font-semibold">Відомості для бланка</h2>
+    <section className={`grid gap-3 ${panel}`}>
+      <h2 className="font-semibold">Відомості для бланка</h2>
       {fields.map((field) => (
         <Field key={field.key} label={field.label}>
           <textarea
@@ -304,7 +328,7 @@ function MyPay({ project }: { project: Project }) {
   if (mine.length === 0) return null;
   const total = mine.reduce((sum, { accrual }) => sum + accrual.total, 0);
   return (
-    <section className="grid gap-1 rounded-lg border border-line bg-surface p-3 text-sm">
+    <section className={`grid gap-1.5 ${panel} text-sm`}>
       <p className="flex items-baseline justify-between gap-3">
         <span className="font-semibold">Ваша зарплата за проект</span>
         <span className="font-semibold tabular-nums">{money(Math.round(total * 100) / 100)}</span>
@@ -334,29 +358,42 @@ function Finance({ project }: { project: Project }) {
   const payments = [...project.payments].sort((a, b) => a.date.localeCompare(b.date));
 
   return (
-    <section className="grid gap-2">
-      <h2 className="font-semibold">Розрахунки</h2>
+    <section className="grid gap-3">
+      <h2 className="text-lg font-semibold">Розрахунки</h2>
 
-      <dl className="grid grid-cols-3 gap-2">
-        <div className="min-w-0 rounded-lg border border-line bg-surface p-3">
-          <dt className="text-xs text-ink-2">Вартість</dt>
-          <dd className="font-semibold">{price === null ? "Не вписано" : money(Math.round(price))}</dd>
-          <dd className="text-xs text-ink-2">для клієнта, з кошторису</dd>
-        </div>
-        <div className="min-w-0 rounded-lg border border-line bg-surface p-3">
-          <dt className="text-xs text-ink-2">Оплачено</dt>
-          <dd className="font-semibold">{money(paid)}</dd>
-        </div>
-        <div className="min-w-0 rounded-lg border border-line bg-surface p-3">
-          <dt className="text-xs text-ink-2">{left !== null && left < 0 ? "Переплата" : "Залишок"}</dt>
-          <dd className="font-semibold">{left === null ? "—" : money(Math.round(Math.abs(left)))}</dd>
-        </div>
-      </dl>
+      <div className={`grid gap-4 ${panel}`}>
+        <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <div className="min-w-0">
+            <dt className="text-xs font-medium text-ink-2">Вартість</dt>
+            <dd className="mt-1 text-xl font-semibold tabular-nums">{price === null ? "Не вписано" : money(Math.round(price))}</dd>
+            <dd className="text-xs text-ink-2">для клієнта, з кошторису</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-xs font-medium text-ink-2">Оплачено</dt>
+            <dd className={`mt-1 text-xl font-semibold tabular-nums ${left !== null && left <= 0 ? "text-success" : ""}`}>{money(paid)}</dd>
+          </div>
+          <div className="min-w-0">
+            <dt className="text-xs font-medium text-ink-2">{left !== null && left < 0 ? "Переплата" : "Залишок"}</dt>
+            <dd className={`mt-1 text-xl font-semibold tabular-nums ${left !== null && left < 0 ? "text-warning" : ""}`}>
+              {left === null ? "—" : money(Math.round(Math.abs(left)))}
+            </dd>
+          </div>
+        </dl>
+        {/* Скільки від вартості вже внесено */}
+        {price !== null && price > 0 && (
+          <span className="block h-1.5 rounded-full bg-wash" aria-hidden="true">
+            <span
+              className={`block h-full rounded-full ${left !== null && left <= 0 ? "bg-success" : "bg-accent"}`}
+              style={{ width: `${Math.min(100, (paid / price) * 100)}%` }}
+            />
+          </span>
+        )}
+      </div>
 
       {payments.length > 0 ? (
         <ul className="divide-y divide-line rounded-lg border border-line bg-surface text-sm">
           {payments.map((payment, index) => (
-            <li key={payment.id} className="flex items-center justify-between gap-3 px-3 py-2">
+            <li key={payment.id} className="flex items-center justify-between gap-3 px-4 py-2.5">
               <span>{index === 0 ? "Аванс" : "Оплата"} · {formatShort(payment.date)}</span>
               <span className="flex items-center gap-2 tabular-nums">
                 {money(payment.amount)}

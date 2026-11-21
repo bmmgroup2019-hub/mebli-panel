@@ -848,6 +848,9 @@ export function addItem(order: string, stage: StageId, week: string) {
 /** Інший виконавець ще не починав: позначка «в роботі» знімається. */
 export function assignItem(id: string, assigneeId: string | null) {
   const current = read();
+  // Виконавця зробленого етапу змінює лише адміністратор: від нього залежить зарплата.
+  const user = current.people.find((person) => person.id === current.sessionId);
+  if (current.items.find((i) => i.id === id)?.doneWeek && user?.role !== "admin") return;
   write({
     ...current,
     items: current.items.map((i) => (i.id === id ? { ...i, assigneeId, startedOn: i.assigneeId === assigneeId ? i.startedOn : null } : i)),

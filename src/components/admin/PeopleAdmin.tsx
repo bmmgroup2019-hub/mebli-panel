@@ -12,8 +12,8 @@ import {
   type Person,
 } from "@/lib/week-store";
 
-const input = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink disabled:opacity-60";
-const button = "rounded-md border border-line px-2.5 py-1.5 text-sm hover:bg-wash";
+const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink disabled:opacity-60";
+const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 const check = "flex items-center gap-1.5 text-sm text-ink";
 const LOGIN_TAKEN = "Такий логін уже є.";
 const ROLES: Record<Person["role"], string> = { worker: "Працівник", manager: "Менеджер", buyer: "Закупівельник", admin: "Адміністратор" };
@@ -44,7 +44,7 @@ export function PeopleAdmin() {
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h1 className="text-xl font-semibold">Люди</h1>
+          <h1 className="text-2xl font-semibold sm:text-3xl">Люди</h1>
           <p className="text-sm text-ink-2">Людина з&apos;являється в колонках тих етапів, які їй позначено.</p>
         </div>
         {!adding && (
@@ -100,7 +100,7 @@ function StageChecks({ name, checked, onToggle }: { name?: string; checked?: Sta
 function AddPersonForm({ onDone }: { onDone: () => void }) {
   const [error, setError] = useState("");
   return (
-    <section className="grid gap-2 rounded-lg border border-line bg-surface p-3">
+    <section className="grid gap-2 rounded-lg border border-line bg-surface p-4">
       <h2 className="font-semibold">Нова людина</h2>
       <form
         className="grid gap-2 sm:grid-cols-4"

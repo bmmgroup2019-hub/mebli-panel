@@ -17,14 +17,14 @@ export function ProjectProfit({ project }: { project: Project }) {
 
   return (
     <>
-      <section className="grid grid-cols-3 gap-2">
+      <section className="grid gap-3 sm:grid-cols-3">
         <Card
           label="Дохід"
           value={round(income)}
           note={project.clientPrice === null ? "розрахункова вартість: для клієнта ще не вписано" : `вартість для клієнта; розрахункова ${round(cost.total)}`}
         />
         <Card label="Витрати" value={round(expenses)} note="матеріали, роботи, інше" />
-        <Card label="Чистий прибуток" value={round(profit)} note={`рентабельність ${amount(Math.round(profitPercent * 10) / 10)}%`} strong />
+        <Card label="Чистий прибуток" value={round(profit)} note={`рентабельність ${amount(Math.round(profitPercent * 10) / 10)}%`} tone={profit < 0 ? "text-critical" : "text-success"} />
       </section>
 
       <section className="grid gap-2">
@@ -48,11 +48,12 @@ export function ProjectProfit({ project }: { project: Project }) {
   );
 }
 
-function Card({ label, value, note, strong = false }: { label: string; value: string; note: string; strong?: boolean }) {
+/** tone — колір суми (прибуток зелений, збиток червоний). */
+function Card({ label, value, note, tone = "" }: { label: string; value: string; note: string; tone?: string }) {
   return (
-    <div className="min-w-0 rounded-lg border border-line bg-surface p-3">
-      <p className="text-xs text-ink-2">{label}</p>
-      <p className={`tabular-nums ${strong ? "font-semibold" : ""}`}>{value}</p>
+    <div className="min-w-0 rounded-lg border border-line bg-surface p-4">
+      <p className="text-xs font-medium text-ink-2">{label}</p>
+      <p className={`mt-1 text-xl font-semibold tabular-nums ${tone}`}>{value}</p>
       <p className="text-xs text-ink-2">{note}</p>
     </div>
   );

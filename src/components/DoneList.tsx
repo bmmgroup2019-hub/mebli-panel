@@ -7,8 +7,7 @@ import { accrualOf, doneInMonth } from "@/lib/salary";
 import { useCurrentUser, useIsAdmin, useWeekData } from "@/lib/week-store";
 import { AccrualDetails } from "./AccrualDetails";
 
-const field = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink";
-const button = "rounded-md border border-line px-2.5 py-1.5 text-sm hover:bg-wash";
+const field = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
 const MONTHS = ["Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень", "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"];
 
 /** «РРРР-ММ» на delta місяців уперед або назад. */
@@ -45,26 +44,34 @@ export function DoneList() {
         ) : (
           <span className="font-semibold">{person.name}</span>
         )}
-        <div className="flex items-center gap-1.5">
-          <button type="button" aria-label="Попередній місяць" className={button} onClick={() => setMonth(shiftMonth(month, -1))}>←</button>
-          <span className="min-w-32 text-center text-sm font-semibold">{monthLabel(month)}</span>
-          <button type="button" aria-label="Наступний місяць" className={button} onClick={() => setMonth(shiftMonth(month, 1))}>→</button>
+        {/* Перемикач місяця однією групою */}
+        <div className="flex w-fit items-stretch overflow-hidden rounded-lg border border-line bg-surface">
+          <button type="button" aria-label="Попередній місяць" className="px-3 py-1.5 text-sm text-ink-2 hover:bg-wash hover:text-ink" onClick={() => setMonth(shiftMonth(month, -1))}>←</button>
+          <span className="grid min-w-36 place-items-center border-x border-line px-3 text-sm font-semibold">{monthLabel(month)}</span>
+          <button type="button" aria-label="Наступний місяць" className="px-3 py-1.5 text-sm text-ink-2 hover:bg-wash hover:text-ink" onClick={() => setMonth(shiftMonth(month, 1))}>→</button>
         </div>
       </div>
 
-      <p className="text-sm">
-        <span className="text-ink-2">Виконано: {done.length} · нараховано </span>
-        <span className="font-semibold">{money(total)}</span>
-      </p>
+      {/* Підсумок місяця */}
+      <dl className="grid grid-cols-2 gap-3">
+        <div className="rounded-lg border border-line bg-surface p-4">
+          <dt className="text-xs text-ink-2">Нараховано</dt>
+          <dd className={`mt-1 text-2xl font-semibold tabular-nums ${total > 0 ? "text-success" : ""}`}>{money(total)}</dd>
+        </div>
+        <div className="rounded-lg border border-line bg-surface p-4">
+          <dt className="text-xs text-ink-2">Виконано етапів</dt>
+          <dd className="mt-1 text-2xl font-semibold tabular-nums">{done.length}</dd>
+        </div>
+      </dl>
 
       {done.length === 0 ? (
         <p className="text-sm text-ink-2">За цей місяць відмічених етапів немає.</p>
       ) : (
         <ul className="divide-y divide-line rounded-lg border border-line bg-surface text-sm">
           {done.map(({ item, handover, on, accrual }) => (
-            <li key={item.id + (handover ? "-h" : "")} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-0.5 px-3 py-2">
+            <li key={item.id + (handover ? "-h" : "")} className="grid grid-cols-[minmax(0,1fr)_auto] gap-x-3 gap-y-1 px-4 py-3">
               <span className="min-w-0">
-                {item.order}
+                <span className="font-medium">{item.order}</span>
                 <span className="block text-xs text-ink-2">
                   {dayLabel(on)} · {handover ? "Здача замовлення (монтаж завершено)" : stageName(item.stage)}
                 </span>

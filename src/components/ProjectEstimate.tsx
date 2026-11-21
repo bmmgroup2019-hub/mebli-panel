@@ -7,8 +7,8 @@ import { addExtra, clientOf, ownsStagePay, removeExtra, updateProject, useCurren
 import { AccrualDetails } from "./AccrualDetails";
 import { ProjectSpec } from "./ProjectSpec";
 
-const input = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink";
-const button = "rounded-md border border-line px-2.5 py-1.5 text-sm hover:bg-wash";
+const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
+const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 
 /**
  * Кошторис менеджера: матеріали, додаткові витрати, поверх для заноски й вартість проекту.
@@ -116,7 +116,7 @@ export function ProjectEstimate({ project }: { project: Project }) {
             <dd className="tabular-nums">{money(cost.total)}</dd>
           </div>
         </dl>
-        <div className="grid gap-1 rounded-lg border border-line bg-surface p-3">
+        <div className="grid gap-1 rounded-lg border border-line bg-surface p-4">
           <label className="grid grid-cols-[minmax(0,1fr)_140px] items-center gap-3 text-sm font-semibold">
             Вартість для клієнта
             {canEdit ? (

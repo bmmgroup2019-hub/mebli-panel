@@ -26,7 +26,7 @@ export function MaterialDialog({
         if (event.target === event.currentTarget) event.currentTarget.close();
       }}
       aria-labelledby="material-dialog-title"
-      className="m-auto w-[calc(100%-32px)] max-w-lg rounded-lg border border-line bg-surface p-0 text-ink backdrop:bg-black/50"
+      className="m-auto w-[calc(100%-32px)] max-w-lg rounded-2xl border border-line bg-surface p-0 text-ink shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
     >
       <div className="grid gap-3 p-4">
         <div className="flex items-start justify-between gap-3">

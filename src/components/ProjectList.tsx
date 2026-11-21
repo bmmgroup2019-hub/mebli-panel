@@ -6,7 +6,7 @@ import { isFinished, specRole, stageStatus, useCanManage, useCurrentUser, useWee
 import { projectLabel, type Project } from "@/lib/mock-projects";
 import { NewProjectButton } from "./NewProjectButton";
 
-const field = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink";
+const field = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
 const MONTH_NAMES = ["Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень", "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"];
 
 const money = (value: number) => `${Math.round(value).toLocaleString("uk-UA")} грн`;
@@ -99,7 +99,7 @@ export function ProjectList() {
   return (
     <>
       {tabs && (
-        <div role="tablist" className="no-scrollbar flex gap-4 overflow-x-auto border-b border-line text-sm">
+        <div role="tablist" className="no-scrollbar flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg border border-line bg-surface p-1 text-sm">
           {([["queue", specUser ? "В черзі на обробку" : "В роботі", countOf(false)], ["passed", "Передані далі", countOf(true)]] as const).map(([id, text, count]) => (
             <button
               key={id}
@@ -107,9 +107,9 @@ export function ProjectList() {
               role="tab"
               aria-selected={view === id}
               onClick={() => setView(id)}
-              className={`-mb-px shrink-0 border-b-2 px-0.5 pb-2 ${view === id ? "border-accent font-semibold text-ink" : "border-transparent text-ink-2 hover:text-ink"}`}
+              className="shrink-0 rounded-md px-3 py-1.5 text-ink-2 hover:text-ink aria-selected:bg-wash aria-selected:font-semibold aria-selected:text-ink"
             >
-              {text} <span className="tabular-nums text-ink-2">{count}</span>
+              {text} <span className="ml-1 tabular-nums text-ink-2">{count}</span>
             </button>
           ))}
         </div>
@@ -120,13 +120,16 @@ export function ProjectList() {
         </p>
       )}
 
+      {/* Панель фільтрів; кнопка нового проекту — праворуч над нею. */}
+      <div className="grid gap-3 rounded-lg border border-line bg-surface p-3 sm:p-4">
       {canManage && (
-        <div className="flex justify-end">
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-semibold">Фільтри</span>
           <NewProjectButton />
         </div>
       )}
 
-      <div className="grid gap-1.5 sm:grid-cols-2">
+      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <input
           type="search"
           value={query}
@@ -179,10 +182,11 @@ export function ProjectList() {
           <input type="date" value={date} onChange={(event) => setDate(event.target.value)} className={field} />
         </label>
       </div>
+      </div>
 
       <p className="flex flex-wrap items-center gap-x-3 text-sm text-ink-2">
         <span>
-          Проектів: {found.length}
+          Проектів: <span className="text-ink tabular-nums">{found.length}</span>
           {!tabs && found.length !== all.length && ` із ${all.length}`}
         </span>
         {filtered && (
@@ -195,50 +199,66 @@ export function ProjectList() {
       {found.length === 0 ? (
         <p className="text-sm text-ink-2">Нічого не знайдено.</p>
       ) : (
-        <ul className="grid gap-1.5 sm:grid-cols-2">
+        <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {found.map((project) => {
             const paid = project.payments.reduce((sum, payment) => sum + payment.amount, 0);
             const cost = project.clientPrice;
             const left = cost === null ? null : Math.round(cost - paid);
+            const finishedProject = stages.get(project.id) === "finished";
+            const paidShare = cost ? Math.min(1, paid / cost) : 0;
             return (
               <li key={project.id}>
-                <Link href={`/projects/${project.id}`} className="grid h-full gap-1.5 rounded-lg border border-line bg-surface p-2.5 hover:border-accent hover:bg-wash">
-                  <span className="flex items-start justify-between gap-2">
-                    <span className="font-semibold">
-                      <span className="text-ink-2">№{project.number}</span> {project.product}
-                    </span>
+                <Link
+                  href={`/projects/${project.id}`}
+                  className="group flex h-full flex-col gap-3 rounded-lg border border-line bg-surface p-4 hover:border-ink-2/40 hover:bg-wash/40"
+                >
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="font-mono text-xs text-ink-2">№{project.number}</span>
                     <span
-                      className={`shrink-0 rounded-full border px-2 py-0.5 text-xs ${
-                        stages.get(project.id) === "finished" ? "border-success/50 text-success" : "border-accent font-medium text-accent-ink"
+                      className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
+                        finishedProject
+                          ? "bg-success/15 text-success"
+                          : stages.get(project.id) === "none"
+                            ? "bg-wash text-ink-2"
+                            : "bg-accent-wash text-accent-ink"
                       }`}
                     >
                       {stageName(stages.get(project.id)!)}
                     </span>
                   </span>
-                  <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-0.5 text-sm">
-                    <dt className="text-ink-2">Прийнято</dt>
-                    <dd>{dateLabel(project.acceptedOn)}</dd>
-                    <dt className="text-ink-2">Замовник</dt>
-                    <dd className="truncate">{project.client}</dd>
-                    {managers.length > 1 && (
-                      <>
-                        <dt className="text-ink-2">Менеджер</dt>
-                        <dd className="truncate">{managerName(project.managerId)}</dd>
-                      </>
-                    )}
-                    {canManage && (
-                      <>
-                        <dt className="text-ink-2">Вартість</dt>
-                        <dd className="font-medium tabular-nums">{cost === null ? "Не вписано" : money(cost)}</dd>
-                        <dt className="text-ink-2">Оплачено</dt>
-                        <dd className="font-medium tabular-nums">{paid ? money(paid) : "—"}</dd>
-                        <dt className="text-ink-2">{left !== null && left < 0 ? "Переплата" : "Залишок"}</dt>
-                        <dd className={`font-medium tabular-nums ${left === 0 ? "text-success" : left !== null && left < 0 ? "text-warning" : ""}`}>
-                          {left === null ? "—" : left === 0 ? "оплачено" : money(Math.abs(left))}
-                        </dd>
-                      </>
-                    )}
-                  </dl>
+                  <span className="grid gap-1">
+                    <span className="text-base font-semibold leading-snug group-hover:text-accent-ink">{project.product}</span>
+                    <span className="truncate text-sm text-ink-2">
+                      {project.client} · {dateLabel(project.acceptedOn)}
+                      {managers.length > 1 && ` · ${managerName(project.managerId)}`}
+                    </span>
+                  </span>
+                  {canManage && (
+                    <span className="mt-auto grid gap-2 border-t border-line pt-3 text-sm">
+                      <span className="flex items-baseline justify-between gap-2">
+                        <span className="font-semibold tabular-nums">{cost === null ? "Не вписано" : money(cost)}</span>
+                        <span
+                          className={`text-xs tabular-nums ${left === 0 ? "text-success" : left !== null && left < 0 ? "text-warning" : "text-ink-2"}`}
+                        >
+                          {left === null
+                            ? ""
+                            : left === 0
+                              ? "оплачено"
+                              : left < 0
+                                ? `переплата ${money(-left)}`
+                                : `залишок ${money(left)}`}
+                        </span>
+                      </span>
+                      {/* Смужка оплати: скільки від вартості вже внесено. */}
+                      <span className="block h-1 rounded-full bg-wash" aria-hidden="true">
+                        <span
+                          className={`block h-full rounded-full ${left !== null && left <= 0 ? "bg-success" : "bg-accent"}`}
+                          style={{ width: `${paidShare * 100}%` }}
+                        />
+                      </span>
+                      <span className="text-xs text-ink-2">Оплачено {paid ? money(paid) : "—"}</span>
+                    </span>
+                  )}
                 </Link>
               </li>
             );

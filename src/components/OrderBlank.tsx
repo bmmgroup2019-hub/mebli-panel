@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import { DETAIL_FIELDS, isKitchen, type Project } from "@/lib/mock-projects";
 import { clientOf, useWeekData } from "@/lib/week-store";
 
-const button = "rounded-md border border-line px-2.5 py-1.5 text-sm hover:bg-wash";
+const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 const money = (value: number) => `${Math.round(value).toLocaleString("uk-UA")} грн`;
 const day = (iso: string) => (iso ? iso.split("-").reverse().join(".") : "");
 
@@ -29,7 +29,7 @@ export function OrderBlank({ project, onBack }: { project: Project; onBack: () =
       <div className="flex flex-wrap items-center gap-1.5 print:hidden">
         <button
           type="button"
-          className="rounded-md bg-accent-fill px-2.5 py-1.5 text-sm font-semibold text-white hover:bg-accent-fill-hover"
+          className="rounded-lg bg-accent-fill px-3.5 py-2 text-sm font-semibold text-accent-on hover:bg-accent-fill-hover"
           onClick={() => window.print()}
         >
           Друкувати

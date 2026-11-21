@@ -6,8 +6,8 @@ import { useState } from "react";
 import { addClient, addProject, nextProjectNumber, useCanManage, useWeekData } from "@/lib/week-store";
 import { ClientFields, readClient } from "./ClientDialog";
 
-const input = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink";
-const button = "rounded-md border border-line px-2.5 py-1.5 text-sm hover:bg-wash";
+const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
+const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 
 /** Кнопка «+ Новий проект» з вікном. Бачать адміністратор і менеджер; після створення — картка проекту. */
 export function NewProjectButton() {
@@ -16,7 +16,7 @@ export function NewProjectButton() {
   if (!canManage) return null;
   return (
     <>
-      <button type="button" className="rounded-md bg-accent-fill px-2.5 py-1.5 text-sm font-semibold text-white hover:bg-accent-fill-hover" onClick={() => setOpen(true)}>
+      <button type="button" className="rounded-lg bg-accent-fill px-3.5 py-2 text-sm font-semibold text-accent-on hover:bg-accent-fill-hover" onClick={() => setOpen(true)}>
         + Новий проект
       </button>
       {open && <NewProjectDialog onClose={() => setOpen(false)} />}
@@ -48,7 +48,7 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
         if (event.target === event.currentTarget) event.currentTarget.close();
       }}
       aria-labelledby="new-project-title"
-      className="m-auto w-[calc(100%-32px)] max-w-lg rounded-lg border border-line bg-surface p-0 text-ink backdrop:bg-black/50"
+      className="m-auto w-[calc(100%-32px)] max-w-lg rounded-2xl border border-line bg-surface p-0 text-ink shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
     >
       <div className="grid gap-3 p-4">
         <div className="flex items-start justify-between gap-3">
@@ -109,7 +109,7 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
           {label("Дата прийому", "acceptedOn", { type: "date", defaultValue: todayIso() })}
           {label("Дата здачі", "dueOn", { type: "date" }, true)}
           <div className="col-span-2 flex flex-wrap items-center gap-1.5 pt-1">
-            <button type="submit" className="rounded-md bg-accent-fill px-2.5 py-1.5 text-sm font-semibold text-white hover:bg-accent-fill-hover">Створити</button>
+            <button type="submit" className="rounded-lg bg-accent-fill px-3.5 py-2 text-sm font-semibold text-accent-on hover:bg-accent-fill-hover">Створити</button>
             <button type="button" className={button} onClick={onClose}>Скасувати</button>
             {error && <p role="alert" className="w-full text-sm text-critical">{error}</p>}
           </div>

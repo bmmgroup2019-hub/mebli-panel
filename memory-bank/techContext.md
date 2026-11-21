@@ -10,10 +10,10 @@
 Перевірка: `npx.cmd tsc --noEmit` і `npm.cmd run lint`.
 
 ## Середовище ПК (Windows 11)
-- Node.js і Git встановлено. Docker і Python немає.
+- Node.js, Git і Python 3.12 встановлено (Python з 2026-11-21: `%LOCALAPPDATA%/Programs/Python/Python312/python.exe`; у PATH першою стоїть заглушка Store, тож викликати повним шляхом). Docker немає.
 - Новий шелл PowerShell може не бачити PATH, тому на початку команди: `$env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')`.
 - Викликати `npm.cmd` і `npx.cmd`: `npm.ps1` може блокувати політика виконання.
-- Bash-heredoc з апострофами й зворотними лапками ламається: великі заміни писати JS-скриптом (інструментом Write у тимчасовий файл) і запускати `node`. Python немає.
+- Bash-heredoc з апострофами й зворотними лапками ламається: великі заміни писати JS-скриптом (інструментом Write у тимчасовий файл) і запускати `node`.
 
 ## Особливості коду
 - Лінтер із React Compiler: ручний `useMemo` дає помилку `preserve-manual-memoization`, дрібні обчислення писати без нього.

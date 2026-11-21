@@ -6,7 +6,7 @@ import { projectLabel, type Client, type Project } from "@/lib/mock-projects";
 import { isFinished, useCanManage, useCurrentUser, useWeekData } from "@/lib/week-store";
 import { ClientDialog } from "./ClientDialog";
 
-const field = "w-full min-w-0 rounded-md border border-line bg-surface px-2 py-1.5 text-sm text-ink";
+const field = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
 
 type Status = "" | "active" | "finished" | "none";
 
@@ -57,7 +57,7 @@ export function ClientsBase() {
           Дані замовника спільні для всіх його проектів. Натисніть на замовника, щоб змінити.
           {user?.role === "manager" && " Проекти інших менеджерів відкриваються лише для перегляду."}
         </p>
-        <button type="button" className="rounded-md bg-success-fill px-2.5 py-1.5 text-sm font-semibold text-white hover:bg-success-fill-hover" onClick={() => setEditing("new")}>
+        <button type="button" className="rounded-lg bg-success-fill px-3.5 py-2 text-sm font-semibold text-white hover:bg-success-fill-hover" onClick={() => setEditing("new")}>
           + Додати замовника
         </button>
       </div>
@@ -113,7 +113,7 @@ export function ClientsBase() {
                             {foreign(project) && " · лише перегляд"}
                           </span>
                         </span>
-                        <span className="shrink-0 text-xs text-ink-2">{done(project) ? "завершено" : "у роботі"}</span>
+                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${done(project) ? "bg-success/15 text-success" : "bg-accent-wash text-accent-ink"}`}>{done(project) ? "завершено" : "у роботі"}</span>
                       </li>
                     ))}
                   </ul>
