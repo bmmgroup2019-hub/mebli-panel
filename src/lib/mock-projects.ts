@@ -57,7 +57,7 @@ export type Extra = { id: string; name: string; amount: number };
 export type ChangeNote = { id: string; date: string; author: string; key: string; label: string; from: string; to: string };
 
 /** Замовник: окремий запис, проекти посилаються на нього. Поверх — для заноски. */
-export type Client = { id: string; name: string; phone: string; address: string; floor: number | null };
+export type Client = { id: string; name: string; phone: string; address: string };
 
 /** Загальні відомості про замовлення для бланка прийому: що домовились із замовником. */
 export type OrderDetails = { facade: string; hardware: string; appliances: string; walls: string; notes: string };
@@ -93,6 +93,7 @@ export type Project = {
   adminEditedOn: string | null; // день, коли адміністратор востаннє змінив чужий проект
   changes: ChangeNote[]; // зміни після авансу, щоб погодити їх із замовником
   details: OrderDetails; // загальні відомості для бланка прийому
+  floor: number | null; // поверх для заноски: в замовленні, бо один замовник може замовляти на різні адреси
   frozen: PriceSnapshot | null; // ціни, заморожені з авансу (prices.ts); до авансу — null, рахуємо за поточними
 };
 
@@ -193,7 +194,7 @@ export const projectLabel = (project: Pick<Project, "number" | "client" | "produ
 const rows = (id: string, list: [groupId: string, name: string, quantity: number, unit: string][]): SpecRow[] =>
   list.map(([groupId, name, quantity, unit], index) => ({ id: `${id}-s${index}`, groupId, name, quantity, unit }));
 
-type ProjectDraft = Omit<Project, "estimate" | "extras" | "clientId" | "clientPrice" | "managerId" | "adminEditedOn" | "changes" | "details" | "frozen">;
+type ProjectDraft = Omit<Project, "estimate" | "extras" | "clientId" | "clientPrice" | "managerId" | "adminEditedOn" | "changes" | "details" | "frozen" | "floor">;
 
 /** Вартість, яку менеджер назвав клієнтові (вигадана, трохи вища за розрахункову). */
 const MOCK_CLIENT_PRICES: Record<string, number> = {
@@ -245,11 +246,11 @@ const MOCK_EXTRAS: Record<string, [name: string, amount: number][]> = {
 };
 /** Замовники прикладу вигадані: телефони з нулями, вулиці неіснуючі. */
 export const MOCK_CLIENTS: Client[] = [
-  { id: "c-koval", name: "Коваль", phone: "067 000 00 01", address: "м. Київ, вул. Прикладна, 12, кв. 45", floor: 5 },
-  { id: "c-tkachenko", name: "Ткаченко", phone: "050 000 00 02", address: "м. Бровари, вул. Умовна, 3, кв. 8", floor: 2 },
-  { id: "c-lytvyn", name: "Литвин", phone: "063 000 00 03", address: "м. Київ, просп. Вигаданий, 101, кв. 17", floor: 3 },
-  { id: "c-moroz", name: "Мороз", phone: "097 000 00 04", address: "м. Ірпінь, вул. Тестова, 5, кв. 90", floor: 9 },
-  { id: "c-bondar", name: "Бондар", phone: "066 000 00 05", address: "с. Зразкове, вул. Садова, 7", floor: null },
+  { id: "c-koval", name: "Коваль", phone: "067 000 00 01", address: "м. Київ, вул. Прикладна, 12, кв. 45" },
+  { id: "c-tkachenko", name: "Ткаченко", phone: "050 000 00 02", address: "м. Бровари, вул. Умовна, 3, кв. 8" },
+  { id: "c-lytvyn", name: "Литвин", phone: "063 000 00 03", address: "м. Київ, просп. Вигаданий, 101, кв. 17" },
+  { id: "c-moroz", name: "Мороз", phone: "097 000 00 04", address: "м. Ірпінь, вул. Тестова, 5, кв. 90" },
+  { id: "c-bondar", name: "Бондар", phone: "066 000 00 05", address: "с. Зразкове, вул. Садова, 7" },
 ];
 
 /** Кошторис зі специфікації прикладу: менеджер заклав із запасом (округлено вгору); листи ДСП і ДВП конструктор уже рахує цілими. */
@@ -259,6 +260,9 @@ const roughly = (id: string, spec: SpecRow[]): SpecRow[] =>
     id: `${id}-e${index}`,
     quantity: row.quantity === null ? null : row.unit === "лист" ? row.quantity : row.unit === "м²" ? Math.ceil(row.quantity * 1.1) : Math.ceil(row.quantity * 1.05),
   }));
+
+/** Поверхи прикладу за замовником (вигадані). */
+const MOCK_FLOORS: Record<string, number | null> = { Коваль: 5, Ткаченко: 2, Литвин: 3, Мороз: 9, Бондар: null };
 
 function withEstimate(project: ProjectDraft): Project {
   const listed = MOCK_ESTIMATES[project.id];
@@ -272,6 +276,7 @@ function withEstimate(project: ProjectDraft): Project {
     adminEditedOn: null,
     changes: MOCK_CHANGES[project.id] ?? [],
     details: { ...EMPTY_DETAILS },
+    floor: MOCK_FLOORS[project.client] ?? null,
     frozen: null, // заморожується в сховищі, коли є оплати
   };
 }

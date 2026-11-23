@@ -97,7 +97,6 @@ export function ClientsBase() {
                   {client.phone && <span className="block text-ink-2">{client.phone}</span>}
                   <span className="block text-xs text-ink-2">
                     {client.address || "Адресу не вказано"}
-                    {client.floor ? ` · поверх ${client.floor}` : ""}
                   </span>
                 </button>
                 {projects.length > 0 ? (

@@ -3,8 +3,8 @@
 import { amount, money, parseNumber } from "@/lib/materials";
 import type { Project } from "@/lib/mock-projects";
 import { pricedData } from "@/lib/prices";
-import { projectCost } from "@/lib/salary";
-import { addExtra, clientOf, ownsStagePay, removeExtra, updateProject, useCurrentUser, useIsAdmin, useProjectAccess, useWeekData } from "@/lib/week-store";
+import { MIN_CARRY_FLOORS, projectCost } from "@/lib/salary";
+import { addExtra, ownsStagePay, removeExtra, updateProject, useCurrentUser, useIsAdmin, useProjectAccess, useWeekData } from "@/lib/week-store";
 import { AccrualDetails } from "./AccrualDetails";
 import { ProjectSpec } from "./ProjectSpec";
 
@@ -82,9 +82,9 @@ export function ProjectEstimate({ project }: { project: Project }) {
       <section className="grid gap-2">
         <h2 className="font-semibold">Заноска</h2>
         <p className="text-sm">
-          Поверх: <span className="font-semibold">{clientOf(data, project)?.floor ?? "не вказано"}</span>
+          Поверх: <span className="font-semibold">{project.floor ?? "не вказано"}</span>
           <span className="text-ink-2">
-            {pricing.floorRate ? ` · ${money(pricing.floorRate)} за поверх` : " · ціну за поверх не задано"} · з даних замовника («Загальне»)
+            {pricing.floorRate ? ` · ${money(pricing.floorRate)} за поверх` : " · ціну за поверх не задано"} · рахуємо мінімум за {MIN_CARRY_FLOORS} поверхи · поверх — у «Загальному»
           </span>
         </p>
       </section>

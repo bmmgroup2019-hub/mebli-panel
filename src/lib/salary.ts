@@ -1,7 +1,7 @@
 // Вартість проекту й зарплата. Усе рахується від кошторису менеджера (не від специфікації конструктора):
 // якщо менеджер помилився в кошторисі, це видно всім. До авансу — поточні ціни й ставки, з авансу — заморожені (prices.ts).
 import { projectLabel, type Project, type SpecRow } from "./mock-projects";
-import { assigneeOf, clientOf, type WeekData, type WorkItem } from "./week-store";
+import { assigneeOf, type WeekData, type WorkItem } from "./week-store";
 import { pricedData } from "./prices";
 
 const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
@@ -48,12 +48,15 @@ function workLines(data: WeekData, project: Project | undefined, stageId: string
   return { lines: [...lines.values()], missing };
 }
 
-/** Заноска: поверх замовника × ціна за поверх, для етапу, який вибрав адміністратор. */
+/** Заноска рахується мінімум за стільки поверхів, навіть якщо це перший поверх або поверх не вказано. */
+export const MIN_CARRY_FLOORS = 3;
+
+/** Заноска: поверх замовлення (не менше MIN_CARRY_FLOORS) × ціна за поверх, для етапу, який вибрав адміністратор. */
 function carryOf(data: WeekData, project: Project | undefined, stageId: string) {
   const { floorRate, floorStageId } = data.pricing;
-  const floor = project ? clientOf(data, project)?.floor : null;
-  if (stageId !== floorStageId || !floor || !floorRate) return null;
-  return { floor, rate: floorRate, sum: floor * floorRate };
+  if (!project || stageId !== floorStageId || !floorRate) return null;
+  const floor = Math.max(project.floor ?? 0, MIN_CARRY_FLOORS);
+  return { floor, actual: project.floor, rate: floorRate, sum: floor * floorRate };
 }
 
 /** Яка частина зарплати етапу: уся, лише за сам етап або лише за здачу (друга частина менеджера). */
@@ -66,7 +69,7 @@ export type Accrual = {
   handover: number; // відсоток за здачу, лише для першого етапу
   base: number; // вартість матеріалів кошторису для відсотка
   lines: WorkLine[]; // для оплати за роботами
-  carry: { floor: number; rate: number; sum: number } | null; // заноска на поверх
+  carry: { floor: number; actual: number | null; rate: number; sum: number } | null; // заноска: floor — скільки поверхів рахуємо, actual — поверх замовлення
   total: number;
   missing: number; // рядки, які не вдалося порахувати
   emptyEstimate: boolean; // кошторис ще не складено

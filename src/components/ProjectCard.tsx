@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { dueLabel, formatShort, todayIso } from "@/lib/dates";
+import { parseNumber } from "@/lib/materials";
 import { DETAIL_FIELDS, isKitchen, projectLabel, type Project } from "@/lib/mock-projects";
 import { addPayment, clientOf, removePayment, isFinished, ownsStagePay, projectAccess, specAccess, useProjectAccess, updateProject, useCanManage, useCurrentUser, useIsAdmin, useWeekData } from "@/lib/week-store";
 import { ClientDialog } from "./ClientDialog";
@@ -174,7 +175,6 @@ function MainFields({ project }: { project: Project }) {
   const contacts = (
     <>
       {item("Телефон", client?.phone && <a href={`tel:${client.phone.replace(/\s/g, "")}`} className="underline">{client.phone}</a>)}
-      {item("Поверх", client?.floor)}
       {item("Адреса", client?.address, true)}
     </>
   );
@@ -185,6 +185,7 @@ function MainFields({ project }: { project: Project }) {
         <dl className={`grid grid-cols-2 gap-4 ${panel} text-sm`}>
           {item("Замовник", project.client)}
           {contacts}
+          {item("Поверх", project.floor)}
           {item("Дата прийому", project.acceptedOn && formatShort(project.acceptedOn))}
           {item("Дата здачі", project.dueOn && formatShort(project.dueOn))}
         </dl>
@@ -200,6 +201,13 @@ function MainFields({ project }: { project: Project }) {
     if (value === project.product) return;
     if (value === "") target.value = project.product;
     else updateProject(project.id, { product: value });
+  };
+  /** Поверх — ціле число; порожнє поле — не вказано. Заноска однаково рахується мінімум за 3 поверхи. */
+  const saveFloor = (target: HTMLInputElement) => {
+    const value = parseNumber(target.value);
+    const floor = value ? Math.round(value) : null;
+    if (floor !== project.floor) updateProject(project.id, { floor });
+    target.value = floor === null ? "" : String(floor);
   };
   const clients = [...data.clients].sort((a, b) => a.name.localeCompare(b.name, "uk"));
 
@@ -227,6 +235,16 @@ function MainFields({ project }: { project: Project }) {
             className={input}
             value={project.dueOn}
             onChange={(e) => updateProject(project.id, { dueOn: e.target.value })}
+          />
+        </Field>
+        <Field label="Поверх (для заноски)">
+          <input
+            key={project.floor ?? "none"}
+            inputMode="numeric"
+            defaultValue={project.floor ?? ""}
+            placeholder="Не вказано"
+            className={input}
+            onBlur={(e) => saveFloor(e.target)}
           />
         </Field>
       </section>

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { parseNumber } from "@/lib/materials";
 import type { Client } from "@/lib/mock-projects";
+import { formatPhone, PHONE_HINT, phoneComplete } from "@/lib/phone";
 import { addClient, removeClient, updateClient, useWeekData } from "@/lib/week-store";
 
 const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
@@ -19,9 +19,16 @@ export function ClientFields({ client, prefix = "" }: { client?: Client; prefix?
   return (
     <>
       {field("Ім'я замовника", "name", client?.name ?? "")}
-      {field("Телефон", "phone", client?.phone ?? "", { type: "tel" })}
+      {field("Телефон", "phone", client?.phone ?? "", {
+        type: "tel",
+        inputMode: "tel",
+        placeholder: "067 123 45 67",
+        // Пробіли розставляються під час набору; «+38» відкидається.
+        onChange: (event) => {
+          event.currentTarget.value = formatPhone(event.currentTarget.value);
+        },
+      })}
       {field("Адреса", "address", client?.address ?? "", {}, true)}
-      {field("Поверх (для заноски)", "floor", client?.floor ? String(client.floor) : "", { inputMode: "numeric" })}
     </>
   );
 }
@@ -29,8 +36,14 @@ export function ClientFields({ client, prefix = "" }: { client?: Client; prefix?
 /** Дані замовника з форми. */
 export function readClient(values: FormData, prefix = ""): Omit<Client, "id"> {
   const text = (name: string) => String(values.get(prefix + name) ?? "").trim();
-  const floor = parseNumber(text("floor"));
-  return { name: text("name"), phone: text("phone"), address: text("address"), floor: floor ? Math.round(floor) : null };
+  return { name: text("name"), phone: formatPhone(text("phone")), address: text("address") };
+}
+
+/** Чого бракує в даних замовника, або порожньо. */
+export function clientProblem(fields: Omit<Client, "id">) {
+  if (!fields.name) return "Вкажіть ім'я замовника.";
+  if (!phoneComplete(fields.phone)) return PHONE_HINT;
+  return "";
 }
 
 /** Вікно замовника: новий (без client) або зміна наявного. Зміни видно в усіх його проектах. */
@@ -75,12 +88,17 @@ export function ClientDialog({
           onSubmit={(event) => {
             event.preventDefault();
             const fields = readClient(new FormData(event.currentTarget));
-            if (!fields.name) {
-              setError("Вкажіть ім'я замовника.");
+            const problem = clientProblem(fields);
+            if (problem) {
+              setError(problem);
               return;
             }
             if (client) updateClient(client.id, fields);
-            else onAdded?.(addClient(fields));
+            else {
+              // Спершу додаємо, потім повідомляємо: з onAdded?.(addClient(…)) без onAdded замовник не додавався.
+              const id = addClient(fields);
+              onAdded?.(id);
+            }
             onClose();
           }}
         >

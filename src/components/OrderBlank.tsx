@@ -63,11 +63,11 @@ export function OrderBlank({ project, onBack }: { project: Project; onBack: () =
           <Row label="Ім'я" value={client?.name ?? project.client} />
           <Row label="Телефон" value={client?.phone} />
           <Row label="Адреса" value={client?.address} />
-          <Row label="Поверх" value={client?.floor ?? undefined} />
         </Block>
 
         <Block title="Замовлення">
           <Row label="Виріб" value={project.product} />
+          <Row label="Поверх" value={project.floor ?? undefined} />
           <Row label="Дата прийому" value={day(project.acceptedOn)} />
           <Row label="Орієнтовна дата здачі" value={day(project.dueOn)} />
           <Row label="Менеджер" value={manager} />

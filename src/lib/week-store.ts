@@ -93,7 +93,7 @@ export type WeekData = {
   sessionId: string | null;
 };
 
-const KEY = "panel-week-v46";
+const KEY = "panel-week-v47";
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 const PRICING: Pricing = { marginPercent: 60, floorRate: 150, floorStageId: "install" };

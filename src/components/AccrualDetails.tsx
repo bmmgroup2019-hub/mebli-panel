@@ -32,6 +32,7 @@ export function AccrualDetails({ accrual }: { accrual: Accrual }) {
       {accrual.carry && (
         <span className="block">
           Заноска: {accrual.carry.floor} поверх × {money(accrual.carry.rate)}
+          {accrual.carry.actual !== accrual.carry.floor && " (мінімум)"}
         </span>
       )}
       {accrual.missing > 0 && <span className="block text-critical">Не враховано рядків без кількості чи ціни: {accrual.missing}</span>}
