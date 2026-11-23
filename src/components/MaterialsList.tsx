@@ -64,7 +64,7 @@ export function MaterialsList() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           aria-label="Пошук матеріалу"
-          placeholder="Пошук: назва або виробник"
+          placeholder="Пошук: назва, виробник або артикул"
           className={field}
         />
         <select aria-label="Група" value={groupId} onChange={(event) => setGroupId(event.target.value)} className={field}>
@@ -115,7 +115,10 @@ export function MaterialsList() {
                     <>
                       <span className="min-w-0">
                         {m.name}
-                        {m.maker && <span className="block text-xs text-ink-2 sm:hidden">{m.maker}</span>}
+                        <span className="block text-xs text-ink-2">
+                          арт. <span className="tabular-nums">{m.article}</span>
+                          {m.maker && <span className="sm:hidden"> · {m.maker}</span>}
+                        </span>
                       </span>
                       <span className="hidden truncate text-ink-2 sm:block">{m.maker}</span>
                       <span className={`text-ink-2 ${canEdit ? "hidden sm:block" : "text-right sm:text-left"}`}>{m.unit}</span>

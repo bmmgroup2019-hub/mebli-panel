@@ -5,6 +5,19 @@ export const money = (value: number) =>
   `${value.toLocaleString("uk-UA", { maximumFractionDigits: 2 })} грн`;
 export const amount = (value: number) => value.toLocaleString("uk-UA", { maximumFractionDigits: 2 });
 
+/**
+ * Артикул, який сайт присвоює сам, коли поле порожнє: «М-0001», «М-0002»…
+ * Свій артикул (наприклад, код Віяру) зберігається як є.
+ */
+const AUTO_ARTICLE = /^М-(\d+)$/;
+export const autoArticle = (n: number) => `М-${String(n).padStart(4, "0")}`;
+
+/** Наступний вільний автоматичний артикул: на одиницю більший за найбільший наявний. */
+export function nextArticle(materials: Pick<Material, "article">[]) {
+  const used = materials.map((m) => Number(AUTO_ARTICLE.exec(m.article)?.[1] ?? 0));
+  return autoArticle(Math.max(0, ...used) + 1);
+}
+
 /** «рядок / рядки / рядків» за правилами української мови. */
 export function rowsWord(count: number) {
   const tens = count % 100;
@@ -21,7 +34,7 @@ export const findMaterial = (materials: Material[], name: string) =>
 
 /** Текст для пошуку: усі слова мають знайтися в назві або виробнику. */
 export function matches(material: Material, query: string) {
-  const text = `${material.name} ${material.maker}`.toLowerCase();
+  const text = `${material.name} ${material.maker} ${material.article}`.toLowerCase();
   return query.toLowerCase().split(/\s+/).filter(Boolean).every((word) => text.includes(word));
 }
 

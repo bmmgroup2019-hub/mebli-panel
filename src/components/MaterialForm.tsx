@@ -7,8 +7,6 @@ import { addMaterial, removeMaterial, updateMaterial, type WeekData } from "@/li
 
 const field = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
 const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
-const TAKEN = "Такий матеріал цього виробника в групі вже є.";
-
 export type MaterialDraft = Omit<Material, "id">;
 
 /** Форма матеріалу: нового (без id) або наявного. Виробник і одиниця — зі списків адміністратора. */
@@ -33,6 +31,7 @@ export function MaterialForm({
     unit: data.units[0] ?? "",
     price: null,
     workId: null,
+    article: "",
     ...draft,
     ...material,
   };
@@ -58,14 +57,15 @@ export function MaterialForm({
           unit: text("unit"),
           price: parseNumber(text("price")),
           workId: text("workId") || null,
+          article: text("article"),
         };
         if (!next.name) {
           setError("Вкажіть назву.");
           return;
         }
-        const saved = material ? updateMaterial(material.id, next) : addMaterial(next);
-        if (!saved) {
-          setError(TAKEN);
+        const failed = material ? updateMaterial(material.id, next) : addMaterial(next);
+        if (failed) {
+          setError(failed);
           return;
         }
         onDone();
@@ -97,6 +97,10 @@ export function MaterialForm({
         defaultValue={start.price === null ? "" : String(start.price).replace(".", ",")}
         className={field}
       />
+      <label className={`col-span-2 grid gap-1 text-xs text-ink-2 ${stacked ? "" : "sm:col-span-5"}`}>
+        Артикул постачальника — порожнє поле сайт заповнить сам
+        <input name="article" aria-label="Артикул" placeholder="Напр. код Віяру; порожньо — М-0001…" defaultValue={start.article} className={field} />
+      </label>
       {data.works.length > 0 && (
         <label className={`col-span-2 grid gap-1 text-xs text-ink-2 ${stacked ? "" : "sm:col-span-5"}`}>
           Робота для зарплати (порізка, поклейка)

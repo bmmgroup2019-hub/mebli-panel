@@ -29,6 +29,7 @@ type Line = {
   unit: string;
   price: number | null;
   sum: number | null;
+  article: string | null; // артикул із довідника; null — назви немає в довіднику
 };
 
 /**
@@ -101,6 +102,7 @@ export function Purchases() {
         unit: material?.unit ?? row.unit,
         price,
         sum: price !== null && row.quantity !== null ? price * row.quantity : null,
+        article: material?.article ?? null,
       };
     });
   });
@@ -250,7 +252,10 @@ function ByMaterial({ lines, mark }: { lines: Line[]; mark: MarkFn }) {
               return (
                 <li key={`${first.row.groupId}|${first.row.name}|${first.unit}`} className={`grid gap-2 border-l-4 px-4 py-3 text-sm ${TONE[overall(list)].stripe}`}>
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                    <span className="min-w-0 font-medium">{first.row.name}</span>
+                    <span className="min-w-0 font-medium">
+                      {first.row.name}
+                      {first.article && <span className="ml-1.5 text-xs font-normal text-ink-2">арт. <span className="tabular-nums">{first.article}</span></span>}
+                    </span>
                     <span className="shrink-0 tabular-nums">
                       <span className="font-semibold">{quantityText(list)} {first.unit}</span>
                       {first.price !== null && <span className="text-ink-2"> · {money(Math.round(sumOf(list)))}</span>}
@@ -317,7 +322,9 @@ function ByProject({ lines, mark, data }: { lines: Line[]; mark: MarkFn; data: W
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                     <span className="min-w-0">
                       {line.row.name}
-                      <span className="text-xs text-ink-2"> · {groupName(line.row.groupId)}</span>
+                      <span className="text-xs text-ink-2">
+                        {line.article && <> · арт. <span className="tabular-nums">{line.article}</span></>} · {groupName(line.row.groupId)}
+                      </span>
                     </span>
                     <span className="shrink-0 font-semibold tabular-nums">
                       {line.row.quantity === null ? "?" : amount(line.row.quantity)} {line.unit}

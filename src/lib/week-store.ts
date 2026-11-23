@@ -27,6 +27,7 @@ import {
   type Work,
 } from "./mock-projects";
 import { keepFrozen } from "./prices";
+import { nextArticle } from "./materials";
 
 /** Замовлення на етапі. Незроблене видно в кожному наступному тижні, поки його не відмітять. */
 export type WorkItem = {
@@ -92,7 +93,7 @@ export type WeekData = {
   sessionId: string | null;
 };
 
-const KEY = "panel-week-v45";
+const KEY = "panel-week-v46";
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 const PRICING: Pricing = { marginPercent: 60, floorRate: 150, floorStageId: "install" };
@@ -636,7 +637,7 @@ export function updatePricing(fields: Partial<Pricing>) {
   write({ ...current, pricing: { ...current.pricing, ...fields } });
 }
 
-const sameName = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 /** false, якщо така група вже є. */
 export function addSpecGroup(name: string) {
@@ -741,23 +742,40 @@ const materialTaken = (fields: Pick<Material, "groupId" | "name" | "maker">, exc
     (m) => m.groupId === fields.groupId && m.id !== exceptId && sameName(m.name, fields.name) && sameName(m.maker, fields.maker),
   );
 
-/** false, якщо такий матеріал цього виробника в групі вже є. */
-export function addMaterial(fields: Omit<Material, "id">) {
-  if (materialTaken(fields)) return false;
-  const current = read();
-  write({ ...current, materials: [...current.materials, { ...fields, id: newId() }] });
-  return true;
+const articleTaken = (article: string, exceptId?: string) =>
+  read().materials.some((m) => m.id !== exceptId && sameName(m.article, article));
+
+/**
+ * Перевірка й артикул перед записом: порожній артикул сайт присвоює сам («М-0001»…),
+ * свій зберігається як є. Повертає текст помилки або готовий артикул.
+ */
+function checkMaterial(fields: Omit<Material, "id">, exceptId?: string): { error: string } | { article: string } {
+  if (materialTaken(fields, exceptId)) return { error: "Такий матеріал цього виробника в групі вже є." };
+  const own = fields.article.trim();
+  if (!own) return { article: nextArticle(read().materials) };
+  if (articleTaken(own, exceptId)) return { error: `Артикул «${own}» уже є в іншого матеріалу.` };
+  return { article: own };
 }
 
-/** false, якщо такий матеріал цього виробника в групі вже є. */
+/** Текст помилки або null, якщо матеріал додано. */
+export function addMaterial(fields: Omit<Material, "id">) {
+  const checked = checkMaterial(fields);
+  if ("error" in checked) return checked.error;
+  const current = read();
+  write({ ...current, materials: [...current.materials, { ...fields, article: checked.article, id: newId() }] });
+  return null;
+}
+
+/** Текст помилки або null, якщо зміни збережено. */
 export function updateMaterial(id: string, fields: Partial<Omit<Material, "id">>) {
   const current = read();
   const material = current.materials.find((m) => m.id === id);
-  if (!material) return false;
+  if (!material) return "Матеріал не знайдено.";
   const next = { ...material, ...fields };
-  if (materialTaken(next, id)) return false;
-  write({ ...current, materials: current.materials.map((m) => (m.id === id ? next : m)) });
-  return true;
+  const checked = checkMaterial(next, id);
+  if ("error" in checked) return checked.error;
+  write({ ...current, materials: current.materials.map((m) => (m.id === id ? { ...next, article: checked.article } : m)) });
+  return null;
 }
 
 /** Рядки специфікацій зберігають свою назву, тому прибрати матеріал можна завжди. */

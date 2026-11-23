@@ -1,5 +1,6 @@
 // Вигадані дані прототипу. Один виріб = один проект.
 import { addDays } from "./dates";
+import { autoArticle } from "./materials";
 import type { Pricing } from "./week-store";
 
 /**
@@ -119,6 +120,8 @@ export type Material = {
   unit: string;
   price: number | null;
   workId: string | null;
+  /** Артикул постачальника або присвоєний сайтом («М-0001»), якщо свій не вписали. Унікальний. */
+  article: string;
 };
 
 /** Виробники матеріалів прикладу. */
@@ -179,6 +182,8 @@ export const MOCK_MATERIALS: Material[] = (
   unit,
   price,
   workId: workOf(name),
+  // Артикулів Віяру в прикладі немає — сайт присвоює свої, як для порожнього поля.
+  article: autoArticle(index + 1),
 }));
 
 /** Назва замовлення в плані й проблемах. */
