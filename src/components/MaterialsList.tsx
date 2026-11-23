@@ -53,8 +53,10 @@ export function MaterialsList() {
     setAdding(draft);
   };
 
-  // На телефоні назва з виробником зліва, вартість або одиниця справа; на ПК — колонки таблиці.
-  const columns = canEdit ? "sm:grid-cols-[minmax(0,1fr)_150px_80px_130px]" : "sm:grid-cols-[minmax(0,1fr)_150px_80px]";
+  // На телефоні назва з артикулом і виробником зліва, вартість або одиниця справа; на ПК — колонки таблиці, артикул першою.
+  const columns = canEdit
+    ? "sm:grid-cols-[90px_minmax(0,1fr)_150px_80px_130px]"
+    : "sm:grid-cols-[90px_minmax(0,1fr)_150px_80px]";
 
   return (
     <>
@@ -99,6 +101,7 @@ export function MaterialsList() {
       ) : (
         <div className="overflow-hidden rounded-lg border border-line bg-surface text-sm">
           <div className={`hidden gap-2 border-b border-line px-3 py-1.5 text-xs text-ink-2 sm:grid ${columns}`}>
+            <span>Артикул</span>
             <span>Назва</span>
             <span>Виробник</span>
             <span>Одиниця</span>
@@ -113,11 +116,12 @@ export function MaterialsList() {
                 {list.map((m) => {
                   const cells = (
                     <>
+                      <span className="hidden truncate tabular-nums text-ink-2 sm:block">{m.article}</span>
                       <span className="min-w-0">
                         {m.name}
-                        <span className="block text-xs text-ink-2">
+                        <span className="block text-xs text-ink-2 sm:hidden">
                           арт. <span className="tabular-nums">{m.article}</span>
-                          {m.maker && <span className="sm:hidden"> · {m.maker}</span>}
+                          {m.maker && <> · {m.maker}</>}
                         </span>
                       </span>
                       <span className="hidden truncate text-ink-2 sm:block">{m.maker}</span>
