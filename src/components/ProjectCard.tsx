@@ -5,7 +5,7 @@ import { useState, type ReactNode } from "react";
 import { dueLabel, formatShort, todayIso } from "@/lib/dates";
 import { parseNumber } from "@/lib/materials";
 import { DETAIL_FIELDS, isKitchen, projectLabel, type Project } from "@/lib/mock-projects";
-import { addPayment, clientOf, removePayment, isFinished, ownsStagePay, projectAccess, specAccess, useProjectAccess, updateProject, useCanManage, useCurrentUser, useIsAdmin, useWeekData } from "@/lib/week-store";
+import { addPayment, clientOf, estimateLocked, removePayment, isFinished, ownsStagePay, projectAccess, specAccess, useProjectAccess, updateProject, useCanManage, useCurrentUser, useIsAdmin, useWeekData } from "@/lib/week-store";
 import { ClientDialog } from "./ClientDialog";
 import { stageAccrual } from "@/lib/salary";
 import { AccrualDetails } from "./AccrualDetails";
@@ -238,14 +238,21 @@ function MainFields({ project }: { project: Project }) {
           />
         </Field>
         <Field label="Поверх (для заноски)">
-          <input
-            key={project.floor ?? "none"}
-            inputMode="numeric"
-            defaultValue={project.floor ?? ""}
-            placeholder="Не вказано"
-            className={input}
-            onBlur={(e) => saveFloor(e.target)}
-          />
+          {estimateLocked(project) ? (
+            <span className="grid gap-0.5 py-1.5">
+              <span className="text-sm text-ink">{project.floor ?? "Не вказано"}</span>
+              <span className="font-normal">Аванс внесено: поверх закрито, від нього заноска.</span>
+            </span>
+          ) : (
+            <input
+              key={project.floor ?? "none"}
+              inputMode="numeric"
+              defaultValue={project.floor ?? ""}
+              placeholder="Не вказано"
+              className={input}
+              onBlur={(e) => saveFloor(e.target)}
+            />
+          )}
         </Field>
       </section>
 

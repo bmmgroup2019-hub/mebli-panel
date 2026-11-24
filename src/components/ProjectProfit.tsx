@@ -8,7 +8,7 @@ import { useWeekData } from "@/lib/week-store";
 
 const round = (value: number) => money(Math.round(value));
 
-/** Доходи та витрати проекту: лише для адміністратора. Усе з кошторису: до авансу за поточними цінами й ставками, з авансу — за замороженими. */
+/** Доходи та витрати проекту: лише для адміністратора. Усе з кошторису: ціни й ставки — зафіксовані для кошторису. */
 export function ProjectProfit({ project }: { project: Project }) {
   const data = useWeekData();
   if (!data) return null;

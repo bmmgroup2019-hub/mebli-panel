@@ -4,7 +4,7 @@ import { amount, money, parseNumber } from "@/lib/materials";
 import type { Project } from "@/lib/mock-projects";
 import { pricedData } from "@/lib/prices";
 import { MIN_CARRY_FLOORS, projectCost } from "@/lib/salary";
-import { addExtra, ownsStagePay, removeExtra, updateProject, useCurrentUser, useIsAdmin, useProjectAccess, useWeekData } from "@/lib/week-store";
+import { addExtra, estimateLocked, ownsStagePay, removeExtra, updateProject, useCurrentUser, useIsAdmin, useProjectAccess, useWeekData } from "@/lib/week-store";
 import { AccrualDetails } from "./AccrualDetails";
 import { ProjectSpec } from "./ProjectSpec";
 
@@ -21,9 +21,10 @@ export function ProjectEstimate({ project }: { project: Project }) {
   const user = useCurrentUser();
   const isAdmin = useIsAdmin();
   const { canEdit } = useProjectAccess(project);
+  const canEditExtras = canEdit && !estimateLocked(project);
   if (!data) return null;
   const cost = projectCost(data, project);
-  // Націнка й заноска — заморожені з авансу, якщо аванс уже є.
+  // Націнка й заноска — зафіксовані для цього кошторису.
   const pricing = pricedData(data, project).pricing;
   // Лише зарплата, яка справді належить цій людині (у чужому проекті прийом — не її).
   const mine = cost.wages.filter(({ stage }) => ownsStagePay(data, user, project, stage.id));
@@ -42,7 +43,7 @@ export function ProjectEstimate({ project }: { project: Project }) {
                 <span className="min-w-0">{extra.name}</span>
                 <span className="flex items-center gap-2 tabular-nums">
                   {money(extra.amount)}
-                  {canEdit && (
+                  {canEditExtras && (
                     <button
                       type="button"
                       aria-label={`Прибрати витрату ${extra.name}`}
@@ -57,8 +58,8 @@ export function ProjectEstimate({ project }: { project: Project }) {
             ))}
           </ul>
         )}
-        {!canEdit && project.extras.length === 0 && <p className="text-sm text-ink-2">Немає.</p>}
-        {canEdit && (
+        {!canEditExtras && project.extras.length === 0 && <p className="text-sm text-ink-2">Немає.</p>}
+        {canEditExtras && (
           <form
             className="grid grid-cols-[minmax(0,1fr)_110px_auto] gap-1.5"
             onSubmit={(event) => {

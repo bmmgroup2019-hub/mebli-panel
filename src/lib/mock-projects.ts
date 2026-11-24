@@ -94,7 +94,7 @@ export type Project = {
   changes: ChangeNote[]; // зміни після авансу, щоб погодити їх із замовником
   details: OrderDetails; // загальні відомості для бланка прийому
   floor: number | null; // поверх для заноски: в замовленні, бо один замовник може замовляти на різні адреси
-  frozen: PriceSnapshot | null; // ціни, заморожені з авансу (prices.ts); до авансу — null, рахуємо за поточними
+  frozen: PriceSnapshot | null; // ціни, зафіксовані з першого запису кошторису (prices.ts); порожній кошторис — null
 };
 
 export const MOCK_UNITS = ["м²", "лист", "пог. м", "шт", "компл."];
@@ -277,7 +277,7 @@ function withEstimate(project: ProjectDraft): Project {
     changes: MOCK_CHANGES[project.id] ?? [],
     details: { ...EMPTY_DETAILS },
     floor: MOCK_FLOORS[project.client] ?? null,
-    frozen: null, // заморожується в сховищі, коли є оплати
+    frozen: null, // фіксується в сховищі
   };
 }
 
@@ -392,8 +392,8 @@ function mockDrafts(week: string): ProjectDraft[] {
 }
 
 /**
- * Знімок цін проекту з дня авансу: матеріали кошторису (копії з довідника), їхні роботи,
- * оплата кожного етапу й налаштування вартості. on — день першої оплати.
+ * Знімок цін проекту: матеріали кошторису (копії з довідника), їхні роботи,
+ * оплата кожного етапу й налаштування вартості. on — день фіксації.
  */
 export type PriceSnapshot = {
   on: string;

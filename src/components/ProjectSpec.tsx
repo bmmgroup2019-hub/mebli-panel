@@ -6,6 +6,7 @@ import { findMaterial, money } from "@/lib/materials";
 import { frozenNote, pricedData } from "@/lib/prices";
 import {
   addSpecRow,
+  estimateLocked,
   removeSpecRow,
   setPurchase,
   updateSpecRow,
@@ -40,7 +41,8 @@ export function ProjectSpec({ project, list = "spec" }: { project: Project; list
   if (!data) return null;
 
   const estimate = list === "estimate";
-  const canEdit = estimate ? canManage : spec.canEdit;
+  const locked = estimate && estimateLocked(project);
+  const canEdit = estimate ? canManage && !locked : spec.canEdit;
   if (!estimate && !spec.sees) {
     return (
       <section className="grid gap-2">
@@ -63,6 +65,9 @@ export function ProjectSpec({ project, list = "spec" }: { project: Project; list
         <div>
           <h2 className="font-semibold">{title}</h2>
           <p className="hidden text-sm print:block">{projectLabel(project)}</p>
+          {locked && (
+            <p className="text-xs text-warning print:hidden">Аванс внесено: кошторис і додаткові витрати закрито для змін.</p>
+          )}
           {estimate && project.frozen && <p className="text-xs text-ink-2 print:hidden">{frozenNote(project.frozen)}</p>}
           {purchase && !empty && (
             <p className="text-xs text-ink-2 print:hidden">
@@ -165,7 +170,7 @@ function GroupBlock({
         <div className="grid gap-1.5 rounded-lg border border-line bg-surface p-2 print:hidden">
           {/* Підказки з довідника; назву не з довідника теж можна вписати. */}
           <datalist id={listId}>
-            {materials.map((m) => <option key={m.id} value={m.name} label={m.maker || undefined} />)}
+            {materials.map((m) => <option key={`${m.id}|${m.name}`} value={m.name} label={m.maker || undefined} />)}
           </datalist>
           {rows.map((row) => (
             <EditRow

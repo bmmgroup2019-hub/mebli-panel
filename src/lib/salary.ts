@@ -1,5 +1,5 @@
 // Вартість проекту й зарплата. Усе рахується від кошторису менеджера (не від специфікації конструктора):
-// якщо менеджер помилився в кошторисі, це видно всім. До авансу — поточні ціни й ставки, з авансу — заморожені (prices.ts).
+// якщо менеджер помилився в кошторисі, це видно всім. Ціни й ставки — зафіксовані для кошторису (prices.ts).
 import { projectLabel, type Project, type SpecRow } from "./mock-projects";
 import { assigneeOf, type WeekData, type WorkItem } from "./week-store";
 import { pricedData } from "./prices";

@@ -151,7 +151,7 @@ function seed(): WeekData {
     id: newId(), order, typeId: type?.id ?? null, text, author, createdOn: today, resolved: false,
   });
   // У прикладі шафа й тумба — проекти другого менеджера, решта — першого.
-  // Проекти з авансом у прикладі одразу мають заморожені ціни.
+  // Проекти прикладу вже мають кошториси, тож ціни одразу зафіксовано.
   const prices = { materials: MOCK_MATERIALS, works: MOCK_WORKS, stages: MOCK_STAGES, pricing: PRICING };
   const projects = mockProjects(week).map((project) => ({
     ...project,
@@ -232,7 +232,7 @@ function read(): WeekData {
   if (data) return data;
   try {
     const saved = localStorage.getItem(KEY);
-    if (saved) data = JSON.parse(saved) as WeekData;
+    if (saved) data = withFrozen(JSON.parse(saved) as WeekData);
   } catch {
     // Пошкоджені або недоступні дані: починаємо з прикладів.
   }
@@ -240,7 +240,17 @@ function read(): WeekData {
   return data;
 }
 
-function write(next: WeekData) {
+/** Ціни кошторисів фіксуються при кожному записі, тож зміна довідника чи ставок їх уже не зачепить. */
+function withFrozen(next: WeekData): WeekData {
+  const projects = next.projects.map((project) => {
+    const frozen = keepFrozen(next, project);
+    return frozen === project.frozen ? project : { ...project, frozen };
+  });
+  return projects.every((project, index) => project === next.projects[index]) ? next : { ...next, projects };
+}
+
+function write(changed: WeekData) {
+  const next = withFrozen(changed);
   data = next;
   try {
     localStorage.setItem(KEY, JSON.stringify(next));
@@ -532,14 +542,14 @@ export function updateProject(id: string, fields: Partial<Omit<Project, "id">>) 
   const project = current.projects.find((p) => p.id === id);
   if (!project) return false;
   const next = { ...project, ...fields };
+  // Від поверху рахується заноска (зарплата монтажу), тож після авансу він закритий разом із кошторисом.
+  if (estimateLocked(project)) next.floor = project.floor;
   // Адміністратор змінив чужий проект — це позначається.
   const user = current.people.find((person) => person.id === current.sessionId);
   if (user?.role === "admin" && project.managerId !== user.id) next.adminEditedOn = todayIso();
   // Інший замовник — інше ім'я в підписі.
   if (fields.clientId) next.client = current.clients.find((c) => c.id === fields.clientId)?.name ?? next.client;
   if (numberTaken(current.projects, next.number, id)) return false;
-  // З авансу ціни проекту заморожено; нові рядки кошторису заморожуються за ціною дня, коли їх додали.
-  next.frozen = keepFrozen(current, next);
   // Після авансу кожну зміну позначаємо: її треба погодити із замовником.
   if (project.payments.length > 0) next.changes = mergeChanges(project.changes, changesBetween(current, project, next), user?.name ?? "");
   const oldLabel = projectLabel(project);
@@ -571,14 +581,21 @@ export function removePayment(projectId: string, paymentId: string) {
 /** Таблиця рядків проекту: специфікація конструктора або кошторис менеджера. Вони не пов'язані. */
 export type RowList = "spec" | "estimate";
 
+/**
+ * Кошторис (рядки, додаткові витрати) і поверх для заноски закрито для всіх, щойно внесено аванс (рішення користувача 2026-11-24):
+ * від нього рахуються вартість і зарплата. Прибрали всі оплати — знову можна змінювати.
+ */
+export const estimateLocked = (project: Project) => project.payments.length > 0;
+const rowsLocked = (project: Project, list: RowList) => list === "estimate" && estimateLocked(project);
+
 export function addSpecRow(projectId: string, fields: Omit<SpecRow, "id">, list: RowList = "spec") {
   const project = read().projects.find((p) => p.id === projectId);
-  if (project) updateProject(projectId, { [list]: [...project[list], { ...fields, id: newId() }] });
+  if (project && !rowsLocked(project, list)) updateProject(projectId, { [list]: [...project[list], { ...fields, id: newId() }] });
 }
 
 export function updateSpecRow(projectId: string, rowId: string, fields: Partial<Omit<SpecRow, "id">>, list: RowList = "spec") {
   const project = read().projects.find((p) => p.id === projectId);
-  if (project) {
+  if (project && !rowsLocked(project, list)) {
     updateProject(projectId, { [list]: project[list].map((row) => (row.id === rowId ? { ...row, ...fields } : row)) });
   }
 }
@@ -614,17 +631,17 @@ export function setPurchaseMany(rows: { projectId: string; rowId: string }[], pu
 
 export function removeSpecRow(projectId: string, rowId: string, list: RowList = "spec") {
   const project = read().projects.find((p) => p.id === projectId);
-  if (project) updateProject(projectId, { [list]: project[list].filter((row) => row.id !== rowId) });
+  if (project && !rowsLocked(project, list)) updateProject(projectId, { [list]: project[list].filter((row) => row.id !== rowId) });
 }
 
 export function addExtra(projectId: string, fields: Omit<Extra, "id">) {
   const project = read().projects.find((p) => p.id === projectId);
-  if (project) updateProject(projectId, { extras: [...project.extras, { ...fields, id: newId() }] });
+  if (project && !estimateLocked(project)) updateProject(projectId, { extras: [...project.extras, { ...fields, id: newId() }] });
 }
 
 export function removeExtra(projectId: string, extraId: string) {
   const project = read().projects.find((p) => p.id === projectId);
-  if (project) updateProject(projectId, { extras: project.extras.filter((extra) => extra.id !== extraId) });
+  if (project && !estimateLocked(project)) updateProject(projectId, { extras: project.extras.filter((extra) => extra.id !== extraId) });
 }
 
 export function updateCompany(fields: Partial<Company>) {
