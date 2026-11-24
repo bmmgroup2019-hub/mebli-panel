@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { rowsWord } from "@/lib/materials";
 import type { Project } from "@/lib/mock-projects";
-import { specReady, useWeekData } from "@/lib/week-store";
+import { specReady, useSeesOffice, useWeekData } from "@/lib/week-store";
 
 type Need = {
   name: string;
@@ -14,20 +14,27 @@ type Need = {
   projects: { project: Project; quantity: number | null }[];
 };
 
+const chip =
+  "rounded-full border border-line bg-surface px-3 py-1 text-sm hover:bg-wash aria-pressed:border-accent aria-pressed:bg-accent-wash aria-pressed:font-semibold aria-pressed:text-accent-ink";
+
 const amount = (value: number) => value.toLocaleString("uk-UA", { maximumFractionDigits: 2 });
 
 /** Скільки матеріалів потрібно на проекти, де специфікація готова, а виріб ще в роботі. */
 export function MaterialsNeed() {
   const data = useWeekData();
-  const [selectedId, setSelectedId] = useState<string | null>(null); // null — усі проекти разом
+  const seesOffice = useSeesOffice();
+  const [selectedIds, setSelectedIds] = useState<string[]>([]); // порожньо — усі проекти разом
   if (!data) return null;
 
   const ready = data.projects.filter((project) => specReady(data, project));
   const counted = ready.filter((project) => project.spec.length > 0);
   const empty = ready.filter((project) => project.spec.length === 0);
   const specStage = data.stages.find((stage) => stage.createsSpec)?.label ?? "Специфікація";
-  const selected = counted.find((project) => project.id === selectedId) ?? null;
-  const shown = selected ? [selected] : counted;
+  // Вибрати можна один проект або кілька; нічого не вибрано — усі.
+  const selected = counted.filter((project) => selectedIds.includes(project.id));
+  const shown = selected.length > 0 ? selected : counted;
+  const toggle = (id: string) =>
+    setSelectedIds((ids) => (ids.includes(id) ? ids.filter((other) => other !== id) : [...ids, id]));
 
   // Однакова назва й одиниця в групі складаються, без різниці у великих літерах.
   // Куплене (відмітка «Куплено» в специфікації) не рахуємо: показуємо, що ще треба купити.
@@ -62,24 +69,28 @@ export function MaterialsNeed() {
         </p>
         {counted.length > 0 && (
           <div className="flex flex-wrap gap-1.5" role="group" aria-label="Проекти в потребі">
-            {[{ id: null, label: `Усі разом · ${counted.length}` }, ...counted.map((project) => ({ id: project.id, label: `№${project.number} ${project.product}` }))].map(
-              (option) => (
-                <button
-                  key={option.id ?? "all"}
-                  type="button"
-                  aria-pressed={(selected?.id ?? null) === option.id}
-                  onClick={() => setSelectedId(option.id)}
-                  className="rounded-full border border-line bg-surface px-3 py-1 text-sm hover:bg-wash aria-pressed:border-accent aria-pressed:bg-accent-wash aria-pressed:font-semibold aria-pressed:text-accent-ink"
-                >
-                  {option.label}
+            <button type="button" aria-pressed={selected.length === 0} onClick={() => setSelectedIds([])} className={chip}>
+              Усі разом · {counted.length}
+            </button>
+            {counted.map((project) => {
+              const on = selected.includes(project);
+              return (
+                <button key={project.id} type="button" aria-pressed={on} onClick={() => toggle(project.id)} className={chip}>
+                  {on && <span aria-hidden="true">✓ </span>}№{project.number} {project.product}
                 </button>
-              ),
-            )}
+              );
+            })}
           </div>
         )}
-        {selected && (
-          <Link href={`/projects/${selected.id}`} className="text-ink-2 hover:underline">
-            Відкрити проект №{selected.number} →
+        {counted.length > 1 && (
+          <p className="text-xs text-ink-2">
+            {selected.length === 0 ? "Можна вибрати один проект або кілька." : `Вибрано проектів: ${selected.length} із ${counted.length}`}
+          </p>
+        )}
+        {/* Закупівельник карток проектів не відкриває. */}
+        {seesOffice && selected.length === 1 && (
+          <Link href={`/projects/${selected[0].id}`} className="text-ink-2 hover:underline">
+            Відкрити проект №{selected[0].number} →
           </Link>
         )}
         {empty.length > 0 && (
@@ -114,7 +125,7 @@ export function MaterialsNeed() {
                     {need.unknown > 0 && need.unknown < need.projects.length && <span className="font-normal text-critical"> + ?</span>}
                   </span>
                 </div>
-                {!selected && <p className="text-xs text-ink-2">
+                {shown.length > 1 && <p className="text-xs text-ink-2">
                   {need.projects
                     .map(({ project, quantity }) => `№${project.number}: ${quantity === null ? "к-сть не вказано" : amount(quantity)}`)
                     .join(" · ")}
