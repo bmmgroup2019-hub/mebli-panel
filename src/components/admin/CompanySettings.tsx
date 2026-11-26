@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { updateCompany, useWeekData, type Company } from "@/lib/week-store";
+import { updateCompany, useWeekData } from "@/lib/week-store";
+import { type Company } from "@/lib/model";
+import { field as input } from "../ui";
 
-const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
 
 const FIELDS: { key: Exclude<keyof Company, "installTerms" | "logo">; label: string; placeholder: string }[] = [
   { key: "name", label: "Назва", placeholder: "Назва фірми" },

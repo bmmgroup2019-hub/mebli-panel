@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { dueLabel, formatShort, todayIso } from "@/lib/dates";
-import { parseNumber } from "@/lib/materials";
-import { DETAIL_FIELDS, isKitchen, projectLabel, type Project } from "@/lib/mock-projects";
-import { addPayment, clientOf, estimateLocked, removePayment, isFinished, ownsStagePay, projectAccess, specAccess, useProjectAccess, updateProject, useCanManage, useCurrentUser, useIsAdmin, useWeekData } from "@/lib/week-store";
+import { dueLabel, formatShort, todayIso, formatDate } from "@/lib/dates";
+import { parseNumber, money } from "@/lib/materials";
+import { DETAIL_FIELDS, isKitchen, projectLabel, type Project } from "@/lib/model";
+import { addPayment, removePayment, useProjectAccess, updateProject, useCanManage, useCurrentUser, useIsAdmin, useWeekData } from "@/lib/week-store";
+import { clientOf, estimateLocked, isFinished, ownsStagePay, projectAccess, specAccess } from "@/lib/rules";
 import { ClientDialog } from "./ClientDialog";
 import { stageAccrual } from "@/lib/salary";
 import { AccrualDetails } from "./AccrualDetails";
@@ -13,13 +14,12 @@ import { ProjectEstimate } from "./ProjectEstimate";
 import { ProjectProfit } from "./ProjectProfit";
 import { ProjectSpec } from "./ProjectSpec";
 import { OrderBlank } from "./OrderBlank";
-import { RefuseButton, RefusalNote } from "./ProjectRefusal";
+import { RefusalNote } from "./ProjectRefusal";
+import { IntakeActions } from "./IntakeActions";
+import { field as input, button } from "./ui";
 
-const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
-const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 /** Картка-розділ усередині проекту. */
 const panel = "rounded-lg border border-line bg-surface p-4";
-const money = (value: number) => `${value.toLocaleString("uk-UA")} грн`;
 
 type Tab = "main" | "estimate" | "spec" | "finance" | "profit";
 
@@ -84,7 +84,7 @@ export function ProjectCard({ id }: { id: string }) {
             <h1 className="text-2xl font-semibold sm:text-3xl">{project.product}</h1>
           </div>
           <div className="flex flex-wrap gap-1.5">
-          <RefuseButton project={project} />
+          {canManage && <IntakeActions project={project} />}
           {canManage && (
             <button type="button" className={`${button} inline-flex items-center gap-2 print:hidden`} onClick={() => setBlank(true)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
@@ -98,7 +98,7 @@ export function ProjectCard({ id }: { id: string }) {
         {/* Мітки: строк, менеджер, позначки змін */}
         <div className="flex flex-wrap gap-1.5 text-xs">
           {project.refusal ? (
-            <span className="rounded-full bg-critical/15 px-2.5 py-1 text-critical">Відмова {project.refusal.on.split("-").reverse().join(".")}</span>
+            <span className="rounded-full bg-critical/15 px-2.5 py-1 text-critical">Відмова {formatDate(project.refusal.on)}</span>
           ) : finished ? (
             <span className="rounded-full bg-success/15 px-2.5 py-1 text-success">Завершено</span>
           ) : (
@@ -111,12 +111,12 @@ export function ProjectCard({ id }: { id: string }) {
           {canManage && managerName && <span className="rounded-full bg-wash px-2.5 py-1 text-ink-2">Менеджер: {managerName}</span>}
           {project.adminEditedOn && (
             <span className="rounded-full bg-wash px-2.5 py-1 text-ink-2">
-              Змінено адміністратором {project.adminEditedOn.split("-").reverse().join(".")}
+              Змінено адміністратором {formatDate(project.adminEditedOn)}
             </span>
           )}
           {canManage && project.changes.length > 0 && (
             <span className="rounded-full bg-warning/15 px-2.5 py-1 text-warning">
-              Змінено після авансу {project.changes.at(-1)!.date.split("-").reverse().join(".")} — що саме, у «Кошторисі»
+              Змінено після авансу {formatDate(project.changes.at(-1)!.date)} — що саме, у «Кошторисі»
             </span>
           )}
         </div>

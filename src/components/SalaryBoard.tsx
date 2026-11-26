@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { monthLabel, shiftMonth, todayIso } from "@/lib/dates";
+import { monthLabel, shiftMonth, todayIso, formatDayMonth as dayLabel } from "@/lib/dates";
 import { money, parseNumber } from "@/lib/materials";
 import { accruedTotal, balanceOf, paidTotal } from "@/lib/salary";
-import { addPayout, removePayout, useIsAdmin, useWeekData, type Person } from "@/lib/week-store";
+import { addPayout, removePayout, useIsAdmin, useWeekData } from "@/lib/week-store";
+import { type Person } from "@/lib/model";
+import { field as input, button, primaryButton, Modal } from "./ui";
 
-const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
-const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
-const dayLabel = (iso: string) => `${iso.slice(8)}.${iso.slice(5, 7)}`;
 
 /**
  * Зарплата всіх людей для адміністратора (рішення користувача 2026-11-26): нараховано й виплачено за місяць,
@@ -113,17 +112,7 @@ export function SalaryBoard() {
 function PayDialog({ person, balance, month, onClose }: { person: Person; balance: number; month: string; onClose: () => void }) {
   const [error, setError] = useState("");
   return (
-    <dialog
-      ref={(el) => {
-        if (el && !el.open) el.showModal();
-      }}
-      onClose={onClose}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) event.currentTarget.close();
-      }}
-      aria-labelledby="pay-title"
-      className="m-auto w-[calc(100%-32px)] max-w-md rounded-lg border border-line bg-surface p-0 text-ink backdrop:bg-black/50"
-    >
+    <Modal labelledBy="pay-title" onClose={onClose} size="md">
       <form
         className="grid grid-cols-2 gap-3 p-4"
         onSubmit={(event) => {
@@ -157,10 +146,10 @@ function PayDialog({ person, balance, month, onClose }: { person: Person; balanc
         </label>
         {error && <p role="alert" className="col-span-2 text-sm text-critical">{error}</p>}
         <div className="col-span-2 flex flex-wrap gap-1.5">
-          <button type="submit" className="rounded-lg bg-accent-fill px-3.5 py-2 text-sm font-semibold text-accent-on hover:bg-accent-fill-hover">Записати виплату</button>
+          <button type="submit" className={primaryButton}>Записати виплату</button>
           <button type="button" className={button} onClick={onClose}>Скасувати</button>
         </div>
       </form>
-    </dialog>
+    </Modal>
   );
 }

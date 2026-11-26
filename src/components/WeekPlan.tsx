@@ -2,37 +2,13 @@
 
 import Link from "next/link";
 import { useState, type CSSProperties, type FormEvent } from "react";
-import { addDays, formatShort, formatSpan, isoWeek, mondayOf, todayIso } from "@/lib/dates";
-import { projectLabel, type StageId } from "@/lib/mock-projects";
-import {
-  addIssue,
-  addItem,
-  assigneeOf,
-  assignItem,
-  canReopen,
-  blockedReason,
-  completeItem,
-  issueTypeName,
-  itemsOfWeek,
-  removeItem,
-  startItem,
-  isIntake,
-  reopenItem,
-  resetWeekData,
-  toggleIssue,
-  useCanManage,
-  useCurrentUser,
-  useIsAdmin,
-  useSeesOffice,
-  useWeekData,
-  type Issue,
-  type Person,
-  type WeekData,
-  type WorkItem,
-} from "@/lib/week-store";
+import { addDays, formatShort, formatSpan, isoWeek, mondayOf, todayIso, formatDayMonth } from "@/lib/dates";
+import { projectLabel, type StageId, type Issue, type Person, type WeekData, type WorkItem } from "@/lib/model";
+import { addIssue, addItem, assignItem, completeItem, removeItem, startItem, reopenItem, resetWeekData, toggleIssue, useCanManage, useCurrentUser, useIsAdmin, useSeesOffice, useWeekData } from "@/lib/week-store";
+import { assigneeOf, canReopen, blockedReason, issueTypeName, itemsOfWeek, isIntake } from "@/lib/rules";
+import { button } from "./ui";
 
 const field = "min-w-0 rounded-lg border border-line px-2.5 py-1.5 text-sm";
-const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 const ORDER_LIST = "order-names";
 
 export function WeekPlan() {
@@ -76,7 +52,7 @@ function Plan({ data }: { data: WeekData }) {
               Зроблено <span className="text-ink tabular-nums">{doneCount}</span> із <span className="tabular-nums">{items.length}</span>
             </span>
             {canManage && (
-              <Link href="/intake" className="text-ink-2 underline hover:text-ink">
+              <Link href={`/projects?stage=${data.stages[0]?.id ?? ""}`} className="text-ink-2 underline hover:text-ink">
                 На прийомі: {intakeCount}
               </Link>
             )}
@@ -316,7 +292,7 @@ function WorkRow({
         {/* Взяти в роботу: після цього попередній етап уже не скасувати. */}
         {!done && !doneLater && item.startedOn && (
           <span className="block text-xs text-accent-ink">
-            В роботі з {item.startedOn.slice(8)}.{item.startedOn.slice(5, 7)}
+            В роботі з {formatDayMonth(item.startedOn)}
             {mine && !intake && (
               <button type="button" className="ml-2 text-ink-2 underline hover:text-ink" onClick={() => startItem(item.id, false)}>
                 скасувати
@@ -334,7 +310,7 @@ function WorkRow({
           </button>
         )}
         {item.adminMarkedOn && (
-          <span className="block text-xs text-ink-2">Змінено адміністратором {item.adminMarkedOn.slice(8)}.{item.adminMarkedOn.slice(5, 7)}</span>
+          <span className="block text-xs text-ink-2">Змінено адміністратором {formatDayMonth(item.adminMarkedOn)}</span>
         )}
         {canAssign && staff.length > 1 && (
           <select

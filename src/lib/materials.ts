@@ -1,8 +1,10 @@
 // Допоміжне для довідника матеріалів: формати чисел, пошук.
-import type { Material } from "./mock-projects";
+import { type Material } from "./model";
 
 export const money = (value: number) =>
   `${value.toLocaleString("uk-UA", { maximumFractionDigits: 2 })} грн`;
+/** Сума без копійок: «39 500 грн». */
+export const wholeMoney = (value: number) => `${Math.round(value).toLocaleString("uk-UA")} грн`;
 export const amount = (value: number) => value.toLocaleString("uk-UA", { maximumFractionDigits: 2 });
 
 /**

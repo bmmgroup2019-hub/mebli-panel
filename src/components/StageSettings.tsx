@@ -1,9 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { addStage, moveStage, removeStage, updateStage, type WeekData } from "@/lib/week-store";
+import { addStage, moveStage, removeStage, updateStage } from "@/lib/week-store";
+import { type WeekData } from "@/lib/model";
+import { field as input } from "./ui";
 
-const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
 const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash disabled:opacity-40";
 const TAKEN = "Такий етап уже є.";
 

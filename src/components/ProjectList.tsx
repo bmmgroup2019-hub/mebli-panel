@@ -1,17 +1,18 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { isFinished, refusalReasonName, specRole, stageStatus, useCanManage, useCurrentUser, useWeekData } from "@/lib/week-store";
-import { projectLabel, type Project } from "@/lib/mock-projects";
+import { useCanManage, useCurrentUser, useWeekData } from "@/lib/week-store";
+import { isFinished, refusalReasonName, specRole, stageStatus } from "@/lib/rules";
+import { projectLabel, type Project } from "@/lib/model";
 import { NewProjectButton } from "./NewProjectButton";
-import { monthLabel } from "@/lib/dates";
+import { diffDays, monthLabel, todayIso, formatDate as dateLabel } from "@/lib/dates";
+import { IntakeActions } from "./IntakeActions";
+import { field, button } from "./ui";
+import { wholeMoney as money } from "@/lib/materials";
 
-const field = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
-const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 
-const money = (value: number) => `${Math.round(value).toLocaleString("uk-UA")} грн`;
-const dateLabel = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 
 /**
  * Список проектів карточками з фільтрами: місяць і дата прийому, назва або номер, замовник, менеджер.
@@ -28,7 +29,16 @@ export function ProjectList() {
   const [month, setMonth] = useState("");
   const [date, setDate] = useState("");
   const [clientId, setClientId] = useState("");
-  const [stage, setStage] = useState(""); // "" — усі в роботі, "finished", "refused", "all", "none" або id етапу
+  // Етап можна передати в адресі: /projects?stage=… (так веде плитка «На прийомі» з «Головної» й посилання з «Тижня»).
+  const stageParam = useSearchParams().get("stage") ?? "";
+  const [stage, setStage] = useState(stageParam); // "" — усі в роботі, "finished", "refused", "all", "none" або id етапу
+  const [seenParam, setSeenParam] = useState(stageParam);
+  // Сторінка лишається в пам'яті між переходами: нове посилання з етапом знову вмикає фільтр.
+  if (seenParam !== stageParam) {
+    setSeenParam(stageParam);
+    setStage(stageParam);
+  }
+  const [advance, setAdvance] = useState(""); // "" — усі, "paid" — з авансом, "unpaid" — без авансу
   const [managerChoice, setManagerChoice] = useState<string | null>(null); // null — за замовчуванням
   const user = useCurrentUser();
   const [view, setView] = useState<"queue" | "passed" | "refused">("queue");
@@ -80,6 +90,7 @@ export function ProjectList() {
       (!date || project.acceptedOn === date) &&
       (!clientId || project.clientId === clientId) &&
       (!managerId || project.managerId === managerId) &&
+      (!advance || (advance === "paid") === project.payments.length > 0) &&
       (!specUser || roles.get(project.id)?.creator) &&
       (!tabs || tabOf(project) === view) &&
       // Фільтр етапу — для всіх, крім конструктора й вкладки «В роботі» менеджера.
@@ -101,7 +112,12 @@ export function ProjectList() {
     ? [...found.reduce((map, p) => map.set(refusalReasonName(data, p.refusal?.reasonId ?? null), (map.get(refusalReasonName(data, p.refusal?.reasonId ?? null)) ?? 0) + 1), new Map<string, number>())]
         .sort((a, b) => b[1] - a[1])
     : [];
-  const activeFilters = [query, month, date, clientId, stage, managerChoice !== null].filter(Boolean).length;
+  const activeFilters = [query, month, date, clientId, stage, advance, managerChoice !== null].filter(Boolean).length;
+  // Список прийому: «В роботі» в менеджера або фільтр етапу «Прийом і розрахунок» — тоді підсумок прорахунків.
+  const intakeView = managerTabs ? view === "queue" : stage === first;
+  const intakePaid = found.filter((p) => p.payments.length > 0).length;
+  const intakeSum = found.reduce((sum, p) => sum + (p.clientPrice ?? 0), 0);
+  const today = todayIso();
   const filtered = activeFilters > 0;
 
   const reset = () => {
@@ -110,6 +126,7 @@ export function ProjectList() {
     setDate("");
     setClientId("");
     setStage("");
+    setAdvance("");
     setManagerChoice(null);
   };
 
@@ -213,6 +230,13 @@ export function ProjectList() {
             ))}
           </select>
         )}
+        {canManage && (
+          <select aria-label="Аванс" value={advance} onChange={(event) => setAdvance(event.target.value)} className={field}>
+            <option value="">Аванс: усі</option>
+            <option value="paid">З авансом</option>
+            <option value="unpaid">Без авансу: чекають рішення</option>
+          </select>
+        )}
         <label className="flex items-center gap-2 text-sm text-ink-2">
           <span className="shrink-0">Дата прийому</span>
           <input type="date" value={date} onChange={(event) => setDate(event.target.value)} className={field} />
@@ -225,6 +249,11 @@ export function ProjectList() {
           Проектів: <span className="text-ink tabular-nums">{found.length}</span>
           {!tabs && found.length !== all.length && ` із ${all.length}`}
         </span>
+        {canManage && intakeView && found.length > 0 && (
+          <span>
+            з авансом <span className="text-ink tabular-nums">{intakePaid}</span> · на суму <span className="text-ink tabular-nums">{money(intakeSum)}</span>
+          </span>
+        )}
         {byReason.length > 0 && (
           <span>
             {byReason.map(([reason, count]) => `${reason}: ${count}`).join(" · ")}
@@ -247,11 +276,14 @@ export function ProjectList() {
             const left = cost === null ? null : Math.round(cost - paid);
             const finishedProject = stages.get(project.id) === "finished";
             const paidShare = cost ? Math.min(1, paid / cost) : 0;
+            // Замовлення на прийомі: скільки чекає рішення клієнта, і дії прийому під карткою.
+            const onIntake = !project.refusal && stages.get(project.id) === first;
+            const waitingDays = onIntake && project.acceptedOn ? Math.max(0, diffDays(project.acceptedOn, today)) : null;
             return (
-              <li key={project.id}>
+              <li key={project.id} className="flex flex-col rounded-lg border border-line bg-surface hover:border-ink-2/40">
                 <Link
                   href={`/projects/${project.id}`}
-                  className="group flex h-full flex-col gap-3 rounded-lg border border-line bg-surface p-4 hover:border-ink-2/40 hover:bg-wash/40"
+                  className="group flex flex-1 flex-col gap-3 rounded-lg p-4 hover:bg-wash/40"
                 >
                   <span className="flex items-center justify-between gap-2">
                     <span className="font-mono text-xs text-ink-2">№{project.number}</span>
@@ -275,6 +307,9 @@ export function ProjectList() {
                       {project.client} · {dateLabel(project.acceptedOn)}
                       {managers.length > 1 && ` · ${managerName(project.managerId)}`}
                     </span>
+                    {waitingDays !== null && (
+                      <span className={`text-xs ${waitingDays >= 21 ? "text-warning" : "text-ink-2"}`}>Чекає {waitingDays} дн.</span>
+                    )}
                     {project.refusal && (
                       <span className="text-xs text-critical">
                         {refusalReasonName(data, project.refusal.reasonId)}
@@ -310,6 +345,11 @@ export function ProjectList() {
                     </span>
                   )}
                 </Link>
+                {canManage && onIntake && (
+                  <div className="flex flex-wrap items-center gap-1.5 px-4 pb-4 empty:hidden">
+                    <IntakeActions project={project} compact />
+                  </div>
+                )}
               </li>
             );
           })}

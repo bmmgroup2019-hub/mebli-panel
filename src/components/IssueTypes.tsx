@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { addIssueType, removeIssueType, renameIssueType, type WeekData } from "@/lib/week-store";
+import { addIssueType, removeIssueType, renameIssueType } from "@/lib/week-store";
+import { type WeekData } from "@/lib/model";
+import { field as input, button } from "./ui";
 
-const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
-const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 const TAKEN = "Такий тип уже є.";
 
 /** Панель адміна: типи проблем, без правок коду. */

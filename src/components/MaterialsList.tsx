@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { matches, money } from "@/lib/materials";
-import { useCanEditMaterials, useWeekData, type WeekData } from "@/lib/week-store";
+import { useCanEditMaterials, useWeekData } from "@/lib/week-store";
+import { type WeekData } from "@/lib/model";
 import { MaterialDialog } from "./MaterialDialog";
 import type { MaterialDraft } from "./MaterialForm";
+import { field, primaryButton } from "./ui";
 
-const field = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
 
 /** Назви, вписані в специфікації вручну: їх варто додати в довідник. */
 function namesNotInDirectory(data: WeekData) {
@@ -87,7 +88,7 @@ export function MaterialsList() {
           {found.length !== data.materials.length && ` із ${data.materials.length}`}
         </span>
         {canEdit && (
-          <button type="button" className="rounded-lg bg-accent-fill px-3.5 py-2 text-sm font-semibold text-accent-on hover:bg-accent-fill-hover" onClick={() => startAdding({ groupId: groupId || undefined, maker })}>
+          <button type="button" className={primaryButton} onClick={() => startAdding({ groupId: groupId || undefined, maker })}>
             + Додати матеріал
           </button>
         )}

@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useState } from "react";
 import { rowsWord } from "@/lib/materials";
-import type { Project } from "@/lib/mock-projects";
-import { specReady, useSeesOffice, useWeekData } from "@/lib/week-store";
+import { type Project } from "@/lib/model";
+import { useSeesOffice, useWeekData } from "@/lib/week-store";
+import { specReady } from "@/lib/rules";
 
 type Need = {
   name: string;

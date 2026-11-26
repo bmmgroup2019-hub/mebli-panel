@@ -1,7 +1,7 @@
 "use client";
 
 import { amount, money } from "@/lib/materials";
-import type { Project } from "@/lib/mock-projects";
+import { type Project } from "@/lib/model";
 import { frozenNote, pricedData } from "@/lib/prices";
 import { projectProfit } from "@/lib/salary";
 import { useWeekData } from "@/lib/week-store";

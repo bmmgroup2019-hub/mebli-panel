@@ -3,19 +3,10 @@
 import Link from "next/link";
 import { useState } from "react";
 import { addDays, diffDays, dueLabel, formatSpan, isoWeek, mondayOf, todayIso } from "@/lib/dates";
-import { projectLabel, type Project, type Stage } from "@/lib/mock-projects";
+import { projectLabel, type Project, type Stage, type Issue, type WeekData, type WorkItem } from "@/lib/model";
 import { NewProjectButton } from "./NewProjectButton";
-import {
-  assigneeOf,
-  isFinished,
-  isIntake,
-  issueTypeName,
-  stageStatus,
-  useWeekData,
-  type Issue,
-  type WeekData,
-  type WorkItem,
-} from "@/lib/week-store";
+import { useWeekData } from "@/lib/week-store";
+import { assigneeOf, isFinished, isIntake, issueTypeName, stageStatus } from "@/lib/rules";
 
 /** «Головна»: лише огляд, без форм. */
 export function Home() {
@@ -108,7 +99,7 @@ export function Overview({ data, week }: { data: WeekData; week: string }) {
 
       <div role="group" aria-label="Стан виробництва" className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 xl:grid-cols-7">
         <Stat label="У роботі" value={rows.length} pressed={!active} onClick={() => setFilterKey(null)} />
-        <Stat label="На прийомі" value={intake.length} note={`з авансом ${intakePaid}`} href="/intake" />
+        <Stat label="На прийомі" value={intake.length} note={`з авансом ${intakePaid}`} href={`/projects?stage=${data.stages[0]?.id ?? ""}`} />
         <Stat label="Проблеми" value={problems.length} warn pressed={filterKey === "problems"} onClick={toggle("problems")} />
         <Stat label="Прострочено" value={rows.filter((row) => row.overdue).length} warn pressed={filterKey === "overdue"} onClick={toggle("overdue")} />
         <Stat label="Не призначено" value={unassigned.length} warn pressed={filterKey === "unassigned"} onClick={toggle("unassigned")} />
@@ -343,7 +334,7 @@ function People({ data, open, intake }: { data: WeekData; open: WorkItem[]; inta
               </span>
               <span className="min-w-0 flex-1 break-words">{person.name}</span>
               {onIntake > 0 ? (
-                <Link href="/intake" className="flex-none text-right text-ink-2 hover:text-ink">на прийомі {onIntake}</Link>
+                <Link href={`/projects?stage=${data.stages[0]?.id ?? ""}`} className="flex-none text-right text-ink-2 hover:text-ink">на прийомі {onIntake}</Link>
               ) : numbers.length > 0 ? (
                 <span className="flex-none text-right text-ink-2 tabular-nums">{numbers.join(", ")}</span>
               ) : (

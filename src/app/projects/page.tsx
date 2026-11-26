@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { ProjectList } from "@/components/ProjectList";
 
 // Вміст з'являється лише після входу, який поки перевіряється в браузері.
@@ -10,7 +11,10 @@ export default function ProjectsPage() {
         <p className="text-xs font-medium uppercase tracking-[0.18em] text-accent">Прототип · дані вигадані</p>
         <h1 className="text-2xl font-semibold sm:text-3xl">Проекти</h1>
       </header>
-      <ProjectList />
+      {/* Список читає фільтр етапу з адреси (?stage=…), тому — у Suspense, як радить Next. */}
+      <Suspense fallback={<p className="text-sm text-ink-2">Завантаження…</p>}>
+        <ProjectList />
+      </Suspense>
     </main>
   );
 }

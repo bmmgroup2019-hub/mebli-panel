@@ -1,14 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { monthLabel, shiftMonth, todayIso } from "@/lib/dates";
+import { monthLabel, shiftMonth, todayIso, formatDayMonth as dayLabel } from "@/lib/dates";
 import { money } from "@/lib/materials";
 import { accrualOf, balanceOf, doneInMonth, paidTotal } from "@/lib/salary";
 import { useCurrentUser, useIsAdmin, useWeekData } from "@/lib/week-store";
 import { AccrualDetails } from "./AccrualDetails";
+import { field } from "./ui";
 
-const field = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
-const dayLabel = (iso: string) => `${iso.slice(8)}.${iso.slice(5, 7)}`;
 
 /**
  * Виконане за місяць, нарахована зарплата, виплати й залишок. Кожен бачить своє, адміністратор — будь-кого.

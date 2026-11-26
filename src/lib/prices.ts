@@ -1,13 +1,12 @@
 // Зафіксовані ціни проекту (рішення користувача 2026-11-24): сума вже складеного кошторису не змінюється,
 // навіть якщо авансу ще немає — її могли погодити із замовником. Матеріал фіксується, коли його додали в кошторис;
 // ставки зарплати, націнка й заноска — коли в кошторисі з'явився перший запис.
-import { todayIso } from "./dates";
-import type { PriceSnapshot, Project, SpecRow } from "./mock-projects";
-import type { WeekData } from "./week-store";
+import { todayIso, formatDate } from "./dates";
+import { type PriceSnapshot, type Project, type SpecRow, type WeekData } from "./model";
+import { sameName as same } from "./util";
 
 type PriceData = Pick<WeekData, "materials" | "works" | "stages" | "pricing">;
 
-const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 const matches = (row: Pick<SpecRow, "groupId" | "name">) => (m: { groupId: string; name: string }) => m.groupId === row.groupId && same(m.name, row.name);
 
 /**
@@ -72,4 +71,4 @@ export function pricedData<T extends PriceData>(data: T, project: Project | unde
 
 /** Підпис для картки: з якого дня ціни зафіксовано. */
 export const frozenNote = (frozen: PriceSnapshot) =>
-  `Ціни зафіксовано${frozen.on ? ` ${frozen.on.split("-").reverse().join(".")}` : ""}: зміни довідника, робіт, ставок і націнки на цей кошторис не впливають.`;
+  `Ціни зафіксовано${frozen.on ? ` ${formatDate(frozen.on)}` : ""}: зміни довідника, робіт, ставок і націнки на цей кошторис не впливають.`;

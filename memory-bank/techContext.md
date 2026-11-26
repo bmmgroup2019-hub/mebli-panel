@@ -15,6 +15,14 @@
 - Викликати `npm.cmd` і `npx.cmd`: `npm.ps1` може блокувати політика виконання.
 - Bash-heredoc з апострофами й зворотними лапками ламається: великі заміни писати JS-скриптом (інструментом Write у тимчасовий файл) і запускати `node`.
 
+## Будова коду (з 2026-11-26)
+- `src/lib/model.ts` — типи даних і довідкові константи (`projectLabel`, `DETAIL_FIELDS`); без сховища й без вигаданих даних.
+- `src/lib/rules.ts` — чисті правила: статуси етапів, хто що бачить і змінює (`projectAccess`, `specAccess`, `canRefuse`, `blockedReason`…). Згодом спільні для браузера й сервера.
+- `src/lib/week-store.ts` — сховище (localStorage), дії, що змінюють дані, і хуки (`useWeekData`, `useCurrentUser`…). Із базою переробляти саме його.
+- `src/lib/seed.ts` — заповнення прикладами; `src/lib/mock-projects.ts` — лише вигадані дані.
+- `src/lib/prices.ts` (фіксація цін), `salary.ts` (вартість і зарплата), `dates.ts` (`formatDate` «ДД.ММ.РРРР», `formatDayMonth` «ДД.ММ»), `materials.ts` (`money`, `wholeMoney`, `amount`, `parseNumber`), `util.ts` (`newId`, `sameName`), `phone.ts`.
+- `src/components/ui.tsx` — спільні стилі (`field`, `button`, `primaryButton`) і вікно `Modal`; нові поля, кнопки й вікна брати звідти, не копіювати класи.
+
 ## Особливості коду
 - Лінтер із React Compiler: ручний `useMemo` дає помилку `preserve-manual-memoization`, дрібні обчислення писати без нього.
 - Кожна сторінка має `export const instant = false`: вхід перевіряється в браузері, а сторінка з `params` без цього дає помилку про prerender.

@@ -1,10 +1,10 @@
 // Вартість проекту й зарплата. Усе рахується від кошторису менеджера (не від специфікації конструктора):
 // якщо менеджер помилився в кошторисі, це видно всім. Ціни й ставки — зафіксовані для кошторису (prices.ts).
-import { projectLabel, type Project, type SpecRow } from "./mock-projects";
-import { assigneeOf, type WeekData, type WorkItem } from "./week-store";
+import { projectLabel, type Project, type SpecRow, type WeekData, type WorkItem } from "./model";
+import { assigneeOf } from "./rules";
 import { pricedData } from "./prices";
+import { sameName as same } from "./util";
 
-const same = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 /** Матеріал довідника для рядка: та сама група й назва. */
 export const materialOf = (data: WeekData, row: SpecRow) =>

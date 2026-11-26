@@ -1,8 +1,8 @@
 "use client";
 
-import type { Material } from "@/lib/mock-projects";
-import type { WeekData } from "@/lib/week-store";
+import { type Material, type WeekData } from "@/lib/model";
 import { MaterialForm, type MaterialDraft } from "./MaterialForm";
+import { Modal } from "./ui";
 
 /** Окреме вікно для нового або наявного матеріалу. Закривається кнопкою, Esc або кліком повз вікно. */
 export function MaterialDialog({
@@ -17,17 +17,7 @@ export function MaterialDialog({
   onClose: () => void;
 }) {
   return (
-    <dialog
-      ref={(el) => {
-        if (el && !el.open) el.showModal();
-      }}
-      onClose={onClose}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) event.currentTarget.close();
-      }}
-      aria-labelledby="material-dialog-title"
-      className="m-auto w-[calc(100%-32px)] max-w-lg rounded-2xl border border-line bg-surface p-0 text-ink shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
-    >
+    <Modal labelledBy="material-dialog-title" onClose={onClose}>
       <div className="grid gap-3 p-4">
         <div className="flex items-start justify-between gap-3">
           <h2 id="material-dialog-title" className="text-lg font-semibold">{material ? "Зміна матеріалу" : "Новий матеріал"}</h2>
@@ -39,6 +29,6 @@ export function MaterialDialog({
         </div>
         <MaterialForm data={data} material={material} draft={draft} onDone={onClose} stacked />
       </div>
-    </dialog>
+    </Modal>
   );
 }

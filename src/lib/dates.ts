@@ -1,7 +1,6 @@
 // Дати — рядки YYYY-MM-DD. Рахуємо в UTC, щоб перехід на літній час не зсував дні.
 const DAY_MS = 86_400_000;
 const MONTHS = ["січ", "лют", "бер", "кві", "тра", "чер", "лип", "сер", "вер", "жов", "лис", "гру"];
-export const WEEKDAYS = ["Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Нд"];
 
 const toMs = (iso: string) => {
   const [y, m, d] = iso.split("-").map(Number);
@@ -51,6 +50,12 @@ export function shiftMonth(month: string, delta: number) {
 
 /** «Листопад 2026» для «2026-11». */
 export const monthLabel = (month: string) => `${MONTH_NAMES[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
+
+/** «26.11.2026»; порожньо для порожньої дати. */
+export const formatDate = (iso: string) => (iso ? `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}` : "");
+
+/** «26.11». */
+export const formatDayMonth = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}`;
 
 export const formatShort = (iso: string) => `${dayOfMonth(iso)} ${MONTHS[Number(iso.slice(5, 7)) - 1]}`;
 

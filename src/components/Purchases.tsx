@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { amount, findMaterial, money, rowsWord } from "@/lib/materials";
-import { type Project, type PurchaseStatus, type SpecRow } from "@/lib/mock-projects";
-import { clientOf, projectAccess, setPurchaseMany, specReady, useCurrentUser, useWeekData, type WeekData } from "@/lib/week-store";
+import { type Project, type PurchaseStatus, type SpecRow, type WeekData } from "@/lib/model";
+import { setPurchaseMany, useCurrentUser, useWeekData } from "@/lib/week-store";
+import { clientOf, projectAccess, specReady } from "@/lib/rules";
+import { field } from "./ui";
 
-const field = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
 const small = "rounded-lg border border-line bg-surface px-2.5 py-1 text-xs hover:bg-wash";
 
 const LABEL: Record<PurchaseStatus | "none", string> = { none: "Не замовлено", ordered: "Замовлено", bought: "Куплено" };

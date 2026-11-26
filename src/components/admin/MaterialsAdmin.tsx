@@ -2,27 +2,10 @@
 
 import { useState } from "react";
 import { parseNumber } from "@/lib/materials";
-import type { StagePay } from "@/lib/mock-projects";
-import {
-  addMaker,
-  addSpecGroup,
-  addUnit,
-  addWork,
-  removeMaker,
-  removeSpecGroup,
-  removeUnit,
-  removeWork,
-  renameMaker,
-  updateSpecGroup,
-  updatePricing,
-  updateStage,
-  updateWork,
-  useWeekData,
-  type WeekData,
-} from "@/lib/week-store";
+import { type StagePay, type WeekData } from "@/lib/model";
+import { addMaker, addSpecGroup, addUnit, addWork, removeMaker, removeSpecGroup, removeUnit, removeWork, renameMaker, updateSpecGroup, updatePricing, updateStage, updateWork, useWeekData } from "@/lib/week-store";
+import { field as input, button } from "../ui";
 
-const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
-const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 
 type Tab = "groups" | "units" | "makers" | "works" | "pay" | "pricing";
 

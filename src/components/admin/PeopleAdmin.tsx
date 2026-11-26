@@ -1,19 +1,12 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import type { StageId } from "@/lib/mock-projects";
-import {
-  addPerson,
-  assigneeOf,
-  removePerson,
-  updatePerson,
-  useCurrentUser,
-  useWeekData,
-  type Person,
-} from "@/lib/week-store";
+import { type StageId, type Person } from "@/lib/model";
+import { addPerson, removePerson, updatePerson, useCurrentUser, useWeekData } from "@/lib/week-store";
+import { assigneeOf } from "@/lib/rules";
+import { button } from "../ui";
 
 const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink disabled:opacity-60";
-const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 const check = "flex items-center gap-1.5 text-sm text-ink";
 const LOGIN_TAKEN = "Такий логін уже є.";
 const ROLES: Record<Person["role"], string> = { worker: "Працівник", manager: "Менеджер", buyer: "Закупівельник", admin: "Адміністратор" };

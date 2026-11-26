@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
-import { useIsAdmin, useWeekData, type WeekData } from "@/lib/week-store";
+import { useIsAdmin, useWeekData } from "@/lib/week-store";
+import { type WeekData } from "@/lib/model";
 
 /** Розділи панелі. count — що показати на картці меню. */
 export const ADMIN_SECTIONS = [

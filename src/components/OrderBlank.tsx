@@ -1,12 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { DETAIL_FIELDS, isKitchen, type Project } from "@/lib/mock-projects";
-import { clientOf, useWeekData } from "@/lib/week-store";
+import { DETAIL_FIELDS, isKitchen, type Project } from "@/lib/model";
+import { useWeekData } from "@/lib/week-store";
+import { clientOf } from "@/lib/rules";
+import { button, primaryButton } from "./ui";
+import { formatDate as day } from "@/lib/dates";
+import { wholeMoney as money } from "@/lib/materials";
 
-const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
-const money = (value: number) => `${Math.round(value).toLocaleString("uk-UA")} грн`;
-const day = (iso: string) => (iso ? iso.split("-").reverse().join(".") : "");
 
 /**
  * Бланк прийому замовлення: шапка фірми, замовник, замовлення, загальні відомості (фасад, фурнітура, техніка для кухні,
@@ -29,7 +30,7 @@ export function OrderBlank({ project, onBack }: { project: Project; onBack: () =
       <div className="flex flex-wrap items-center gap-1.5 print:hidden">
         <button
           type="button"
-          className="rounded-lg bg-accent-fill px-3.5 py-2 text-sm font-semibold text-accent-on hover:bg-accent-fill-hover"
+          className={primaryButton}
           onClick={() => window.print()}
         >
           Друкувати

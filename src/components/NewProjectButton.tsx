@@ -4,11 +4,11 @@ import { todayIso } from "@/lib/dates";
 import { parseNumber } from "@/lib/materials";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { addClient, addProject, nextProjectNumber, useCanManage, useWeekData } from "@/lib/week-store";
+import { addClient, addProject, useCanManage, useWeekData } from "@/lib/week-store";
+import { nextProjectNumber } from "@/lib/rules";
 import { clientProblem, ClientFields, readClient } from "./ClientDialog";
+import { field as input, button, primaryButton, Modal } from "./ui";
 
-const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
-const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 
 /** Кнопка «+ Новий проект» з вікном. Бачать адміністратор і менеджер; після створення — картка проекту. */
 export function NewProjectButton() {
@@ -17,7 +17,7 @@ export function NewProjectButton() {
   if (!canManage) return null;
   return (
     <>
-      <button type="button" className="rounded-lg bg-accent-fill px-3.5 py-2 text-sm font-semibold text-accent-on hover:bg-accent-fill-hover" onClick={() => setOpen(true)}>
+      <button type="button" className={primaryButton} onClick={() => setOpen(true)}>
         + Новий проект
       </button>
       {open && <NewProjectDialog onClose={() => setOpen(false)} />}
@@ -40,17 +40,7 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
   );
 
   return (
-    <dialog
-      ref={(el) => {
-        if (el && !el.open) el.showModal();
-      }}
-      onClose={onClose}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) event.currentTarget.close();
-      }}
-      aria-labelledby="new-project-title"
-      className="m-auto w-[calc(100%-32px)] max-w-lg rounded-2xl border border-line bg-surface p-0 text-ink shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm"
-    >
+    <Modal labelledBy="new-project-title" onClose={onClose}>
       <div className="grid gap-3 p-4">
         <div className="flex items-start justify-between gap-3">
           <h2 id="new-project-title" className="text-lg font-semibold">Новий проект</h2>
@@ -117,12 +107,12 @@ function NewProjectDialog({ onClose }: { onClose: () => void }) {
           {label("Дата здачі", "dueOn", { type: "date" })}
           {label("Поверх (для заноски)", "floor", { inputMode: "numeric", placeholder: "Не вказано" })}
           <div className="col-span-2 flex flex-wrap items-center gap-1.5 pt-1">
-            <button type="submit" className="rounded-lg bg-accent-fill px-3.5 py-2 text-sm font-semibold text-accent-on hover:bg-accent-fill-hover">Створити</button>
+            <button type="submit" className={primaryButton}>Створити</button>
             <button type="button" className={button} onClick={onClose}>Скасувати</button>
             {error && <p role="alert" className="w-full text-sm text-critical">{error}</p>}
           </div>
         </form>
       </div>
-    </dialog>
+    </Modal>
   );
 }

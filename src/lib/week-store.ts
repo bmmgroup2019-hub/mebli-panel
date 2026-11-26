@@ -1,269 +1,16 @@
-// Сховище прототипу: localStorage цього браузера. Із базою тут зміниться лише цей файл.
+// Сховище прототипу: localStorage цього браузера, дії, що змінюють дані, і хуки для сторінок.
+// Модель — model.ts, правила (хто що бачить, статуси) — rules.ts, приклади — seed.ts і mock-projects.ts.
+// Із базою зміниться саме цей файл: дії підуть на сервер, правила й розрахунки лишаться спільними.
 import { useSyncExternalStore } from "react";
-import { addDays, mondayOf, todayIso } from "./dates";
-import {
-  type PurchaseStatus,
-  MOCK_CLIENTS,
-  MOCK_INTAKE,
-  MOCK_MAKERS,
-  MOCK_MATERIALS,
-  MOCK_SPEC_GROUPS,
-  MOCK_UNITS,
-  MOCK_WORKS,
-  MOCK_STAGES,
-  mockProjects,
-  projectLabel,
-  type ChangeNote,
-  DETAIL_FIELDS,
-  EMPTY_DETAILS,
-  type Client,
-  type Material,
-  type Project,
-  type SpecGroup,
-  type SpecRow,
-  type Extra,
-  type Stage,
-  type StageId,
-  type StageStatus,
-  type Work,
-} from "./mock-projects";
+import { mondayOf, todayIso, formatDate } from "./dates";
+import { type ChangeNote, type Client, type Company, DETAIL_FIELDS, EMPTY_DETAILS, type Extra, type Material, type Person, type Pricing, type Project, projectLabel, type PurchaseStatus, type RowList, type SpecGroup, type SpecRow, type Stage, type StageId, type WeekData, type Work, type WorkItem } from "./model";
+import { assigneeOf, blockedReason, canRefuse, canReopen, estimateLocked, isFinished, isIntake, itemsOfWeek, nextProjectNumber, projectAccess, specAccess } from "./rules";
+import { seed } from "./seed";
+import { newId, sameName } from "./util";
 import { keepFrozen } from "./prices";
-import { nextArticle } from "./materials";
-
-/** Замовлення на етапі. Незроблене видно в кожному наступному тижні, поки його не відмітять. */
-export type WorkItem = {
-  id: string;
-  order: string;
-  stage: StageId;
-  week: string; // понеділок тижня, з якого замовлення на етапі
-  doneWeek: string | null; // понеділок тижня, коли етап зроблено
-  doneOn: string | null; // день, коли відмітили: від нього рахується місяць зарплати
-  nextId: string | null; // запис наступного етапу, створений галочкою
-  assigneeId: string | null; // хто взяв замовлення
-  startedOn: string | null; // день, коли виконавець узяв замовлення в роботу (натиснув «Почати»)
-  adminMarkedOn: string | null; // день, коли адміністратор відмітив або скасував чужий етап
-};
-
-export type Person = {
-  id: string;
-  name: string;
-  login: string;
-  password: string; // лише для прототипу: із базою паролі тут не зберігатимуться
-  role: "admin" | "manager" | "worker" | "buyer"; // buyer — закупівельник: закупки й довідник матеріалів
-  stages: StageId[]; // одна людина може працювати на кількох етапах
-};
-
-export type Issue = {
-  id: string;
-  order: string; // порожньо — загальне питання
-  typeId: string | null;
-  text: string;
-  author: string;
-  createdOn: string;
-  resolved: boolean;
-};
-
-export type IssueType = { id: string; name: string };
-
-/** Причина відмови клієнта: список веде адміністратор. */
-export type RefusalReason = { id: string; name: string };
-
-/** Виплата працівнику (аванс чи зарплата): вносить адміністратор. Залишок = нараховане − виплачене. */
-export type Payout = { id: string; personId: string; date: string; amount: number; note: string };
-
-/**
- * Налаштування вартості проекту, веде адміністратор.
- * marginPercent — націнка виробництва від вартості матеріалів; floorRate — заноска, грн за поверх;
- * floorStageId — етап, якому нараховується заноска (монтаж).
- */
-export type Pricing = { marginPercent: number; floorRate: number | null; floorStageId: StageId | null };
-
-/** Реквізити фірми для шапки бланків. Веде адміністратор. */
-/** logo — зображення логотипу (data URL, зменшене до 400 px), порожньо — без логотипу. */
-export type Company = { name: string; phone: string; address: string; extra: string; installTerms: string; logo: string };
-
-export type WeekData = {
-  company: Company;
-  stages: Stage[];
-  issueTypes: IssueType[];
-  refusalReasons: RefusalReason[];
-  payouts: Payout[];
-  specGroups: SpecGroup[];
-  units: string[];
-  makers: string[]; // виробники матеріалів, веде адміністратор
-  materials: Material[];
-  works: Work[]; // роботи з ціною для зарплати за кількістю
-  pricing: Pricing;
-  clients: Client[]; // замовники, проекти посилаються на них
-  projects: Project[];
-  items: WorkItem[];
-  issues: Issue[];
-  people: Person[];
-  sessionId: string | null;
-};
+import { nextArticle, wholeMoney } from "./materials";
 
 const KEY = "panel-week-v50";
-const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-
-const PRICING: Pricing = { marginPercent: 60, floorRate: 150, floorStageId: "install" };
-
-function seed(): WeekData {
-  const today = todayIso();
-  const week = mondayOf(today);
-  const lastWeek = addDays(week, -7);
-  const owner: Person = { id: newId(), name: "Власник", login: "admin", password: "admin", role: "admin", stages: [] };
-  const manager: Person = { id: newId(), name: "Менеджер", login: "manager", password: "2222", role: "manager", stages: ["intake"] };
-  const manager2: Person = { id: newId(), name: "Менеджер 2", login: "manager2", password: "6666", role: "manager", stages: ["intake"] };
-  const constructor: Person = { id: newId(), name: "Конструктор", login: "konstruktor", password: "3333", role: "worker", stages: ["project"] };
-  const cncOperator: Person = { id: newId(), name: "Оператор ЧПУ", login: "chpu", password: "4444", role: "worker", stages: ["cnc"] };
-  const edger: Person = { id: newId(), name: "Крайкообліцювальник", login: "kraika", password: "5555", role: "worker", stages: ["edge"] };
-  const buyer: Person = { id: newId(), name: "Закупівельник", login: "zakupka", password: "8888", role: "buyer", stages: [] };
-  const workers: Person[] = [1, 2, 3].map((n) => ({
-    id: newId(),
-    name: `Складальник ${n}`,
-    login: `zbirka${n}`,
-    password: "1111",
-    role: "worker",
-    stages: ["assembly"],
-  }));
-  // Монтажники — окремі люди, не складальники.
-  const installers: Person[] = [1, 2].map((n) => ({
-    id: newId(),
-    name: `Монтажник ${n}`,
-    login: `montazh${n}`,
-    password: "7777",
-    role: "worker",
-    stages: ["install"],
-  }));
-  const item = (
-    order: string,
-    stage: StageId,
-    start: string,
-    doneWeek: string | null = null,
-    assigneeId: string | null = null,
-  ): WorkItem => ({
-    id: newId(),
-    order,
-    stage,
-    week: start,
-    doneWeek,
-    // У прикладі етап відмічено в четвер свого тижня, але не пізніше сьогодні.
-    doneOn: doneWeek ? (addDays(doneWeek, 3) < today ? addDays(doneWeek, 3) : today) : null,
-    nextId: null,
-    assigneeId,
-    startedOn: null,
-    adminMarkedOn: null,
-  });
-  const issueTypes: IssueType[] = ["Немає матеріалів", "Брак, перезамовити", "Інше"].map((name) => ({ id: newId(), name }));
-  const [noMaterials, defect, other] = issueTypes;
-  const refusalReasons: RefusalReason[] = ["Дорого", "Довго чекати", "Пішов до інших", "Передумав", "Інше"].map((name) => ({ id: newId(), name }));
-  const issue = (order: string, type: IssueType | null, text: string, author = owner.name): Issue => ({
-    id: newId(), order, typeId: type?.id ?? null, text, author, createdOn: today, resolved: false,
-  });
-  // У прикладі шафа й тумба — проекти другого менеджера, решта — першого.
-  // Проекти прикладу вже мають кошториси, тож ціни одразу зафіксовано.
-  const prices = { materials: MOCK_MATERIALS, works: MOCK_WORKS, stages: MOCK_STAGES, pricing: PRICING };
-  // Приклад відмови: другий менеджер прорахував шафу, клієнт пішов до інших.
-  const refused: Project = {
-    id: "vidmova",
-    number: "245",
-    clientId: "c-bondar",
-    client: "Бондар",
-    product: "Шафа в передпокій",
-    acceptedOn: addDays(week, -10),
-    dueOn: "",
-    payments: [],
-    spec: [],
-    estimate: [
-      { id: "vidmova-e0", groupId: "boards", name: "ДСП Kronospan 0110 SM Білий корпусний, 18 мм", quantity: 2, unit: "лист" },
-      { id: "vidmova-e1", groupId: "fasteners", name: "Конфірмат Muller 7×50 мм", quantity: 80, unit: "шт" },
-    ],
-    extras: [],
-    clientPrice: 18500,
-    managerId: "",
-    adminEditedOn: null,
-    changes: [],
-    details: { ...EMPTY_DETAILS },
-    floor: null,
-    refusal: { on: addDays(week, -3), reasonId: refusalReasons[2].id, note: "Знайшли дешевше в іншій майстерні", by: "Менеджер 2" },
-    frozen: null,
-  };
-  const projects = [...mockProjects(week), refused].map((project) => ({
-    ...project,
-    managerId: ["shafa", "tumba", "vidmova"].includes(project.id) || MOCK_INTAKE.find((q) => q.id === project.id)?.manager === 2 ? manager2.id : manager.id,
-    frozen: keepFrozen(prices, project),
-  }));
-  const [kitchen, wardrobe, hallway, dressing, stand, chest] = [
-    "kukhnya", "shafa", "peredpokiy", "garderobna", "tumba", "komod",
-  ].map((id) => projectLabel(projects.find((project) => project.id === id)!));
-  return {
-    sessionId: null,
-    // Вигадані реквізити: справжні вписує адміністратор у розділі «Фірма».
-    company: { name: "Меблева майстерня (приклад)", phone: "000 000 00 00", address: "м. Київ, вул. Прикладна, 1", extra: "", installTerms: "", logo: "" },
-    stages: MOCK_STAGES,
-    issueTypes,
-    refusalReasons,
-    // Приклад виплати: аванс конструктору.
-    payouts: [{ id: newId(), personId: constructor.id, date: addDays(week, -1) < today ? addDays(week, -1) : today, amount: 1000, note: "Аванс" }],
-    specGroups: MOCK_SPEC_GROUPS,
-    units: MOCK_UNITS,
-    makers: MOCK_MAKERS,
-    materials: MOCK_MATERIALS,
-    works: MOCK_WORKS,
-    pricing: PRICING,
-    clients: MOCK_CLIENTS,
-    projects,
-    people: [owner, manager, manager2, constructor, cncOperator, edger, ...workers, ...installers, buyer],
-    items: linkNext([
-      // Прийом і розрахунок: тиждень прийому замовлення.
-      ...projects.map((project) => {
-        const accepted = mondayOf(project.acceptedOn);
-        // Шафа-купе й прораховані замовлення ще на прийомі: на наступний етап не передано.
-        const waiting = project.id === "kupe" || MOCK_INTAKE.some((q) => q.id === project.id);
-        // Прийом у роботі в менеджера з дня, коли він прийняв замовлення.
-        return { ...item(projectLabel(project), "intake", accepted, waiting ? null : accepted, project.managerId), startedOn: project.acceptedOn };
-      }).filter((entry) => !entry.order.startsWith("№245")), // відмова: на «Тижні» її вже немає
-      item(kitchen, "project", addDays(week, -28), lastWeek),
-      item(kitchen, "cnc", lastWeek, week),
-      item(kitchen, "edge", week),
-      item(wardrobe, "project", addDays(week, -14), lastWeek),
-      item(wardrobe, "cnc", lastWeek),
-      item(stand, "project", week),
-      item(dressing, "project", addDays(week, -28), addDays(week, -21)),
-      item(dressing, "cnc", addDays(week, -21), addDays(week, -14)),
-      item(dressing, "edge", addDays(week, -14), lastWeek),
-      // Зборку гардеробної вже почали: крайка свою галочку зняти не може.
-      { ...item(dressing, "assembly", lastWeek, null, workers[0].id), startedOn: addDays(lastWeek, 4) },
-      item(chest, "project", addDays(week, -28), addDays(week, -21)),
-      item(chest, "cnc", addDays(week, -21), addDays(week, -14)),
-      item(chest, "edge", addDays(week, -14), lastWeek),
-      item(chest, "assembly", week),
-      item(hallway, "project", addDays(week, -28), addDays(week, -21)),
-      item(hallway, "cnc", addDays(week, -21), addDays(week, -14)),
-      item(hallway, "edge", addDays(week, -14), addDays(week, -14)),
-      item(hallway, "assembly", addDays(week, -14), week, workers[1].id),
-      item(hallway, "install", week, null, installers[0].id),
-    ]),
-    issues: [
-      issue(wardrobe, noMaterials, "Не привезли фасади, зупиниться зборка", workers[2].name),
-      issue(wardrobe, other, "Не підтверджено колір ручок"),
-      issue(kitchen, other, "Замовник досі не підтвердив модель духовки"),
-      issue(dressing, defect, "Зіпсували фасад, треба перезамовити", workers[0].name),
-      issue("", null, "Хто виходить на монтаж у суботу?"),
-    ],
-  };
-}
-
-/** Приклад: зроблений етап посилається на запис наступного етапу того ж замовлення, як після галочки. */
-function linkNext(items: WorkItem[]) {
-  const order = MOCK_STAGES.map((stage) => stage.id);
-  return items.map((item) => {
-    if (!item.doneWeek) return item;
-    const nextStage = order[order.indexOf(item.stage) + 1];
-    const next = items.find((i) => i.order === item.order && i.stage === nextStage);
-    return next ? { ...item, nextId: next.id } : item;
-  });
-}
 
 let data: WeekData | null = null;
 const listeners = new Set<() => void>();
@@ -340,76 +87,6 @@ export function useSeesOffice() {
   return user?.role === "admin" || user?.role === "manager" || Boolean(user?.stages.some((id) => specStages.includes(id)));
 }
 
-/**
- * Хто бачить і змінює специфікацію проекту.
- * Змінюють адміністратор і той, хто її створює: людина етапу «Специфікація», призначена на цей проект
- * (або будь-хто з цього етапу, поки нікого не призначено). Менеджер бачить її лише після того,
- * як етап «Специфікація» завершено, і без права змін. Інші люди етапу — лише перегляд.
- */
-export function specAccess(data: WeekData, user: Person | null, project: Project) {
-  if (!user) return { sees: false, canEdit: false };
-  if (user.role === "admin") return { sees: true, canEdit: true };
-  const { creator, mine, done } = specRole(data, user, project);
-  // Після передачі робочого проекту далі конструктор специфікацію лише переглядає.
-  if (creator) return { sees: true, canEdit: !done };
-  if (mine) return { sees: true, canEdit: false };
-  return { sees: done, canEdit: false };
-}
-
-/**
- * Місце людини в етапі «Специфікація» проекту: mine — людина цього етапу; creator — призначена на проект
- * (або ще нікого не призначено); done — етап завершено, робочий проект передано далі.
- */
-export function specRole(data: WeekData, user: Person, project: Project) {
-  const order = projectLabel(project);
-  const specStages = data.stages.filter((stage) => stage.createsSpec);
-  const mine = specStages.filter((stage) => user.stages.includes(stage.id));
-  const creator = mine.some((stage) => {
-    const items = data.items.filter((item) => item.order === order && item.stage === stage.id);
-    if (items.length === 0) return true;
-    return items.some((item) => {
-      const assignee = assigneeOf(item, data.people);
-      return assignee === user.id || assignee === null;
-    });
-  });
-  const done = specStages.length > 0 && specStages.every((stage) => stageStatus(data.items, order, stage.id) === "done");
-  return { mine: mine.length > 0, creator, done };
-}
-
-/**
- * Права на проект. Змінює адміністратор (будь-який проект) і менеджер, який його створив, —
- * поки прийом не завершено (проект не пішов на наступний етап).
- * Оплати: власник — аванс до передачі й доплата після завершення останнього етапу.
- */
-export function projectAccess(data: WeekData, user: Person | null, project: Project) {
-  if (!user) return { canEdit: false, canPay: false, canPurchase: false, own: false };
-  // Відмова: проект лише для перегляду, поки його не повернули в роботу.
-  if (project.refusal) return { canEdit: false, canPay: false, canPurchase: false, own: user.role === "manager" && project.managerId === user.id };
-  if (user.role === "admin") return { canEdit: true, canPay: true, canPurchase: true, own: project.managerId === user.id };
-  // Закупівельник відмічає закупки в усіх проектах, решту не змінює.
-  if (user.role === "buyer") return { canEdit: false, canPay: false, canPurchase: true, own: false };
-  const own =user.role === "manager" && project.managerId === user.id;
-  const order = projectLabel(project);
-  const first = data.stages[0];
-  const intakeDone = first ? stageStatus(data.items, order, first.id) === "done" : false;
-  // Закупки за специфікацією веде менеджер проекту на будь-якому етапі.
-  return { canEdit: own && !intakeDone, canPay: own && (!intakeDone || isFinished(data, order)), canPurchase: own, own };
-}
-
-/**
- * Чи належить людині зарплата за етап цього проекту.
- * Перший етап (прийом) — менеджеру проекту. Інші — тому, хто виконує запис етапу на «Тижні»;
- * поки запису немає — людині етапу, якщо вона на ньому одна.
- */
-export function ownsStagePay(data: WeekData, user: Person | null, project: Project, stageId: StageId) {
-  if (!user || !user.stages.includes(stageId)) return false;
-  if (stageId === data.stages[0]?.id) return project.managerId === user.id;
-  const order = projectLabel(project);
-  const items = data.items.filter((item) => item.order === order && item.stage === stageId);
-  if (items.length > 0) return items.some((item) => assigneeOf(item, data.people) === user.id);
-  return data.people.filter((person) => person.stages.includes(stageId)).length === 1;
-}
-
 export function useProjectAccess(project: Project) {
   const data = useWeekData();
   const user = useCurrentUser();
@@ -437,28 +114,8 @@ export function signOut() {
 const loginTaken = (login: string, exceptId?: string) =>
   read().people.some((p) => p.login === login && p.id !== exceptId);
 
-/** Записи, які показуємо в цьому тижні. */
-export const itemsOfWeek = (items: WorkItem[], week: string) =>
-  items.filter((item) => item.week <= week && (item.doneWeek === null || item.doneWeek >= week));
-
-/** Хто виконує запис. Якщо на етапі одна людина, це вона, навіть без призначення. */
-export function assigneeOf(item: WorkItem, people: Person[]) {
-  const staff = people.filter((person) => person.stages.includes(item.stage));
-  if (staff.some((person) => person.id === item.assigneeId)) return item.assigneeId;
-  return staff.length === 1 ? staff[0].id : null;
-}
-
-export function stageStatus(items: WorkItem[], order: string, stage: StageId): StageStatus {
-  const own = items.filter((item) => item.order === order && item.stage === stage);
-  if (own.length === 0) return "todo";
-  return own.some((item) => item.doneWeek === null) ? "wip" : "done";
-}
-
 const numberTaken = (projects: Project[], number: string, exceptId?: string) =>
   projects.some((p) => p.number === number && p.id !== exceptId);
-
-/** Замовник проекту. */
-export const clientOf = (data: WeekData, project: Project) => data.clients.find((client) => client.id === project.clientId);
 
 /** id нового замовника. Однакові імена можливі: замовників розрізняє телефон. */
 export function addClient(fields: Omit<Client, "id">) {
@@ -484,10 +141,6 @@ export function removeClient(id: string) {
   write({ ...current, clients: current.clients.filter((c) => c.id !== id) });
   return true;
 }
-
-/** Номер наступного замовлення: найбільший числовий номер + 1. */
-export const nextProjectNumber = (projects: Project[]) =>
-  String(projects.reduce((max, p) => Math.max(max, Number.parseInt(p.number, 10) || 0), 0) + 1);
 
 /** id нового проекту або null, якщо замовника немає. Номер проставляється автоматично. */
 export function addProject(
@@ -523,8 +176,8 @@ export function addProject(
 
 type ChangeDraft = Pick<ChangeNote, "key" | "label" | "from" | "to">;
 
-const changeMoney = (value: number | null) => (value === null ? "не вписано" : `${Math.round(value).toLocaleString("uk-UA")} грн`);
-const changeDate = (iso: string) => (iso ? iso.split("-").reverse().join(".") : "не вказано");
+const changeMoney = (value: number | null) => (value === null ? "не вписано" : wholeMoney(value));
+const changeDate = (iso: string) => (iso ? formatDate(iso) : "не вказано");
 const changeRow = (row: SpecRow) => `${row.quantity === null ? "без кількості" : row.quantity.toLocaleString("uk-UA")} ${row.unit}`;
 
 /** Що змінилось у проекті для замовника: виріб, дати, замовник, вартість, рядки кошторису, додаткові витрати. */
@@ -620,15 +273,6 @@ export function removePayment(projectId: string, paymentId: string) {
   const project = read().projects.find((p) => p.id === projectId);
   if (project) updateProject(projectId, { payments: project.payments.filter((p) => p.id !== paymentId) });
 }
-
-/** Таблиця рядків проекту: специфікація конструктора або кошторис менеджера. Вони не пов'язані. */
-export type RowList = "spec" | "estimate";
-
-/**
- * Кошторис (рядки, додаткові витрати) і поверх для заноски закрито для всіх, щойно внесено аванс (рішення користувача 2026-11-24):
- * від нього рахуються вартість і зарплата. Прибрали всі оплати — знову можна змінювати.
- */
-export const estimateLocked = (project: Project) => project.payments.length > 0;
 const rowsLocked = (project: Project, list: RowList) => list === "estimate" && estimateLocked(project);
 
 export function addSpecRow(projectId: string, fields: Omit<SpecRow, "id">, list: RowList = "spec") {
@@ -696,8 +340,6 @@ export function updatePricing(fields: Partial<Pricing>) {
   const current = read();
   write({ ...current, pricing: { ...current.pricing, ...fields } });
 }
-
-const sameName = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
 
 /** false, якщо така група вже є. */
 export function addSpecGroup(name: string) {
@@ -844,26 +486,6 @@ export function removeMaterial(id: string) {
   write({ ...current, materials: current.materials.filter((m) => m.id !== id) });
 }
 
-/** Замовлення завершене, коли зроблено останній етап. */
-export function isFinished(data: WeekData, order: string) {
-  const last = data.stages.at(-1);
-  return last ? stageStatus(data.items, order, last.id) === "done" : false;
-}
-
-/**
- * Специфікація готова до закупки: зроблено всі етапи з позначкою «Специфікація» (у прикладі «Робочий проект»),
- * а виріб ще в роботі.
- */
-export function specReady(data: WeekData, project: Project) {
-  const label = projectLabel(project);
-  const specStages = data.stages.filter((stage) => stage.createsSpec);
-  return (
-    specStages.length > 0 &&
-    specStages.every((stage) => stageStatus(data.items, label, stage.id) === "done") &&
-    !isFinished(data, label)
-  );
-}
-
 const stageTaken = (label: string, exceptId?: string) =>
   read().stages.some((s) => s.id !== exceptId && s.label.toLowerCase() === label.toLowerCase());
 
@@ -905,9 +527,6 @@ export function removeStage(id: string) {
   });
   return true;
 }
-
-/** Перший етап — прийом і розрахунок: з нього менеджер починає замовлення. */
-export const isIntake = (data: Pick<WeekData, "stages">, stage: StageId) => stage === data.stages[0]?.id;
 
 /** Прийом (перший етап) одразу належить менеджеру проекту, якщо він працює на цьому етапі. */
 function defaultAssignee(current: WeekData, order: string, stage: StageId) {
@@ -1001,18 +620,6 @@ function adminMark(current: WeekData, item: WorkItem) {
   return todayIso();
 }
 
-/**
- * Чого бракує, щоб передати замовлення далі.
- * Без виконавця не можна: зарплата нараховується саме йому, інакше вона не дісталася б нікому.
- * Перший етап (прийом) — ще й лише після авансу.
- */
-export function blockedReason(data: WeekData, item: WorkItem) {
-  if (!assigneeOf(item, data.people)) return "Спершу виберіть, хто бере";
-  if (item.stage !== data.stages[0]?.id) return null;
-  const project = data.projects.find((p) => projectLabel(p) === item.order);
-  return project && project.payments.length === 0 ? "Спершу внесіть аванс" : null;
-}
-
 /** Етап зроблено: замовлення переходить на наступний етап у цьому самому тижні. */
 export function completeItem(id: string, week: string) {
   const current = read();
@@ -1031,12 +638,6 @@ export function completeItem(id: string, week: string) {
     i.id === id ? { ...i, doneWeek: week, doneOn: todayIso(), startedOn: i.startedOn ?? todayIso(), nextId: next?.id ?? null, adminMarkedOn } : i,
   );
   write({ ...current, items: next ? [...items, next] : items });
-}
-
-/** Скасувати галочку можна, поки виконавець наступного етапу не взяв замовлення в роботу (і, звісно, не зробив). */
-export function canReopen(items: WorkItem[], item: WorkItem) {
-  const next = items.find((i) => i.id === item.nextId);
-  return !next?.doneWeek && !next?.startedOn;
 }
 
 export function reopenItem(id: string) {
@@ -1086,8 +687,6 @@ export function removeIssueType(id: string) {
   });
 }
 
-export const issueTypeName = (types: IssueType[], id: string | null) => types.find((t) => t.id === id)?.name ?? "";
-
 export function addIssue(order: string, typeId: string | null, text: string, author: string) {
   const current = read();
   const issue = { id: newId(), order, typeId, text, author, createdOn: todayIso(), resolved: false };
@@ -1097,15 +696,6 @@ export function addIssue(order: string, typeId: string | null, text: string, aut
 export function toggleIssue(id: string) {
   const current = read();
   write({ ...current, issues: current.issues.map((i) => (i.id === id ? { ...i, resolved: !i.resolved } : i)) });
-}
-
-/**
- * Позначити відмову клієнта може менеджер проекту й адміністратор — лише до авансу.
- * Повернути в роботу — ті самі люди.
- */
-export function canRefuse(user: Person | null, project: Project) {
-  if (!user || project.payments.length > 0) return false;
-  return user.role === "admin" || (user.role === "manager" && project.managerId === user.id);
 }
 
 /** Відмова: незроблені записи проекту йдуть з «Тижня». false, якщо вже є аванс. */
@@ -1161,9 +751,6 @@ export function removeRefusalReason(id: string) {
     projects: current.projects.map((p) => (p.refusal?.reasonId === id ? { ...p, refusal: { ...p.refusal, reasonId: null } } : p)),
   });
 }
-
-export const refusalReasonName = (data: WeekData, id: string | null) =>
-  data.refusalReasons.find((r) => r.id === id)?.name ?? "Без причини";
 
 export function addPayout(personId: string, date: string, amount: number, note: string) {
   if (!(amount > 0) || !date) return;

@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { projectLabel, type Client, type Project } from "@/lib/mock-projects";
-import { isFinished, useCanManage, useCurrentUser, useWeekData } from "@/lib/week-store";
+import { projectLabel, type Client, type Project } from "@/lib/model";
+import { useCanManage, useCurrentUser, useWeekData } from "@/lib/week-store";
+import { isFinished } from "@/lib/rules";
 import { ClientDialog } from "./ClientDialog";
+import { field } from "./ui";
 
-const field = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
 
 type Status = "" | "active" | "finished" | "none";
 

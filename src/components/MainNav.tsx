@@ -53,12 +53,6 @@ const ICONS: Record<string, ReactNode> = {
     </>
   ),
   "/issues": <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0zM12 9v4M12 17h.01" />,
-  "/intake": (
-    <>
-      <rect x="5" y="3.5" width="14" height="18" rx="2" />
-      <path d="M9 3.5h6v2.5H9zM8.5 11h7M8.5 15h4.5" />
-    </>
-  ),
   "/projects": <path d="M4 20h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.7-.9l-.8-1.2A2 2 0 0 0 7.9 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2z" />,
   "/purchases": (
     <>
@@ -116,8 +110,6 @@ const SECTIONS: { href: string; label: string; show: (w: Who) => boolean; main: 
   { href: "/", label: "Головна", show: (w) => w.office, main: () => true },
   { href: "/week", label: "Тиждень", show: () => true, main: () => true },
   { href: "/issues", label: "Проблеми", show: () => true, main: () => true },
-  // Прийом окремо від «Тижня» (2026-11-26): у менеджерів там 8–10 прорахованих замовлень.
-  { href: "/intake", label: "Прийом", show: (w) => w.managers, main: (w) => w.managers },
   { href: "/projects", label: "Проекти", show: (w) => w.office, main: () => true },
   { href: "/purchases", label: "Закупка", show: (w) => w.purchases, main: (w) => w.buyer },
   { href: "/clients", label: "Замовники", show: (w) => w.managers, main: () => false },

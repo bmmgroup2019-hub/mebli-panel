@@ -1,15 +1,16 @@
 "use client";
 
 import { amount, money, parseNumber } from "@/lib/materials";
-import type { Project } from "@/lib/mock-projects";
+import { type Project } from "@/lib/model";
 import { pricedData } from "@/lib/prices";
 import { MIN_CARRY_FLOORS, projectCost } from "@/lib/salary";
-import { addExtra, estimateLocked, ownsStagePay, removeExtra, updateProject, useCurrentUser, useIsAdmin, useProjectAccess, useWeekData } from "@/lib/week-store";
+import { addExtra, removeExtra, updateProject, useCurrentUser, useIsAdmin, useProjectAccess, useWeekData } from "@/lib/week-store";
+import { estimateLocked, ownsStagePay } from "@/lib/rules";
 import { AccrualDetails } from "./AccrualDetails";
 import { ProjectSpec } from "./ProjectSpec";
+import { field as input, button } from "./ui";
+import { formatDate as day } from "@/lib/dates";
 
-const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
-const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 
 /**
  * Кошторис менеджера: матеріали, додаткові витрати, поверх для заноски й вартість проекту.
@@ -161,7 +162,6 @@ export function ProjectEstimate({ project }: { project: Project }) {
 
 /** Зміни після авансу, новіші першими: що було й що стало, хто й коли. Їх треба погодити із замовником. */
 function Changes({ project }: { project: Project }) {
-  const day = (iso: string) => iso.split("-").reverse().join(".");
   return (
     <section className="grid gap-2">
       <h2 className="font-semibold">Зміни після авансу</h2>
