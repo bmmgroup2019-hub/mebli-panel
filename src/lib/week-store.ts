@@ -101,7 +101,7 @@ export type WeekData = {
   sessionId: string | null;
 };
 
-const KEY = "panel-week-v48";
+const KEY = "panel-week-v49";
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 const PRICING: Pricing = { marginPercent: 60, floorRate: 150, floorStageId: "install" };
@@ -218,7 +218,8 @@ function seed(): WeekData {
       ...projects.map((project) => {
         const accepted = mondayOf(project.acceptedOn);
         // Шафа-купе ще на прийомі: аванс є, на наступний етап не передано.
-        return item(projectLabel(project), "intake", accepted, project.id === "kupe" ? null : accepted, project.managerId);
+        // Прийом у роботі в менеджера з дня, коли він прийняв замовлення.
+        return { ...item(projectLabel(project), "intake", accepted, project.id === "kupe" ? null : accepted, project.managerId), startedOn: project.acceptedOn };
       }).filter((entry) => !entry.order.startsWith("№245")), // відмова: на «Тижні» її вже немає
       item(kitchen, "project", addDays(week, -28), lastWeek),
       item(kitchen, "cnc", lastWeek, week),
@@ -903,6 +904,9 @@ export function removeStage(id: string) {
   return true;
 }
 
+/** Перший етап — прийом і розрахунок: з нього менеджер починає замовлення. */
+export const isIntake = (data: Pick<WeekData, "stages">, stage: StageId) => stage === data.stages[0]?.id;
+
 /** Прийом (перший етап) одразу належить менеджеру проекту, якщо він працює на цьому етапі. */
 function defaultAssignee(current: WeekData, order: string, stage: StageId) {
   if (stage !== current.stages[0]?.id) return null;
@@ -923,7 +927,8 @@ export function addItem(order: string, stage: StageId, week: string) {
     doneOn: null,
     nextId: null,
     assigneeId: defaultAssignee(current, order, stage),
-    startedOn: null,
+    // Прийом менеджер не «бере»: замовлення в нього в роботі, щойно він його створив.
+    startedOn: isIntake(current, stage) ? todayIso() : null,
     adminMarkedOn: null,
   };
   write({ ...current, items: [...current.items, item] });
@@ -937,7 +942,12 @@ export function assignItem(id: string, assigneeId: string | null) {
   if (current.items.find((i) => i.id === id)?.doneWeek && user?.role !== "admin") return;
   write({
     ...current,
-    items: current.items.map((i) => (i.id === id ? { ...i, assigneeId, startedOn: i.assigneeId === assigneeId ? i.startedOn : null } : i)),
+    items: current.items.map((i) =>
+      i.id !== id
+        ? i
+        : // Прийом лишається в роботі й в іншого менеджера.
+          { ...i, assigneeId, startedOn: isIntake(current, i.stage) ? (i.startedOn ?? todayIso()) : i.assigneeId === assigneeId ? i.startedOn : null },
+    ),
   });
 }
 
@@ -945,7 +955,8 @@ export function assignItem(id: string, assigneeId: string | null) {
 export function startItem(id: string, started: boolean) {
   const current = read();
   const item = current.items.find((i) => i.id === id);
-  if (!item || item.doneWeek || (started && blockedReason(current, item))) return;
+  // Прийом у роботі з моменту створення: його не беруть і не скасовують.
+  if (!item || item.doneWeek || isIntake(current, item.stage) || (started && blockedReason(current, item))) return;
   write({ ...current, items: current.items.map((i) => (i.id === id ? { ...i, startedOn: started ? todayIso() : null } : i)) });
 }
 

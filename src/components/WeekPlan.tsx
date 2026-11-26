@@ -16,6 +16,7 @@ import {
   itemsOfWeek,
   removeItem,
   startItem,
+  isIntake,
   reopenItem,
   resetWeekData,
   toggleIssue,
@@ -269,6 +270,8 @@ function WorkRow({
   // у зробленому етапі виконавця (а з ним і зарплату) змінює тільки адміністратор.
   const project = data?.projects.find((p) => projectLabel(p) === item.order);
   const canAssign = isAdmin || (canManage && project?.managerId === user?.id && item.doneWeek === null);
+  // Прийом менеджер не «бере»: замовлення в нього в роботі з моменту створення.
+  const intake = data ? isIntake(data, item.stage) : false;
   const done = item.doneWeek === week;
   const doneLater = item.doneWeek !== null && item.doneWeek > week;
   const blocked = !done && data ? blockedReason(data, item) : null;
@@ -305,14 +308,14 @@ function WorkRow({
         {!done && !doneLater && item.startedOn && (
           <span className="block text-xs text-accent-ink">
             В роботі з {item.startedOn.slice(8)}.{item.startedOn.slice(5, 7)}
-            {mine && (
+            {mine && !intake && (
               <button type="button" className="ml-2 text-ink-2 underline hover:text-ink" onClick={() => startItem(item.id, false)}>
                 скасувати
               </button>
             )}
           </span>
         )}
-        {!done && !doneLater && !item.startedOn && assignee && !blocked && (
+        {!done && !doneLater && !intake && !item.startedOn && assignee && !blocked && (
           <button
             type="button"
             className="mt-1.5 block rounded-md bg-accent-fill px-2 py-1 text-xs font-medium text-accent-on hover:bg-accent-fill-hover"
