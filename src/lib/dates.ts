@@ -40,6 +40,18 @@ export function dueLabel(dueOn: string, today: string): string {
 
 export const dayOfMonth = (iso: string) => Number(iso.slice(8, 10));
 
+const MONTH_NAMES = ["Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень", "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"];
+
+/** «РРРР-ММ» на delta місяців уперед або назад. */
+export function shiftMonth(month: string, delta: number) {
+  const [year, m] = month.split("-").map(Number);
+  const index = year * 12 + (m - 1) + delta;
+  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`;
+}
+
+/** «Листопад 2026» для «2026-11». */
+export const monthLabel = (month: string) => `${MONTH_NAMES[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
+
 export const formatShort = (iso: string) => `${dayOfMonth(iso)} ${MONTHS[Number(iso.slice(5, 7)) - 1]}`;
 
 export function formatSpan(start: string, end: string): string {

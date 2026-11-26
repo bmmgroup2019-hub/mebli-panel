@@ -2,23 +2,23 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { isFinished, specRole, stageStatus, useCanManage, useCurrentUser, useWeekData } from "@/lib/week-store";
+import { isFinished, refusalReasonName, specRole, stageStatus, useCanManage, useCurrentUser, useWeekData } from "@/lib/week-store";
 import { projectLabel, type Project } from "@/lib/mock-projects";
 import { NewProjectButton } from "./NewProjectButton";
+import { monthLabel } from "@/lib/dates";
 
 const field = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
-const MONTH_NAMES = ["Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень", "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"];
 
 const money = (value: number) => `${Math.round(value).toLocaleString("uk-UA")} грн`;
 const dateLabel = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
-const monthLabel = (month: string) => `${MONTH_NAMES[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
 
 /**
  * Список проектів карточками з фільтрами: місяць і дата прийому, назва або номер, замовник, менеджер.
  * Менеджер за замовчуванням бачить свої проекти; фільтр менеджера — коли менеджерів кілька.
  * Фільтр етапу: за замовчуванням усі в роботі, завершені — лише якщо їх вибрати.
  * Конструктор (людина етапу «Специфікація») бачить свої проекти двома вкладками: у черзі на обробку й передані далі.
- * Менеджер — теж двома: в роботі (прийом не завершено, можна змінювати) і передані далі (змінює лише адміністратор).
+ * Менеджер — трьома: в роботі (прийом не завершено, можна змінювати), передані далі (змінює лише адміністратор) і відмови.
+ * Відмови клієнтів (до авансу) не входять у «Усі в роботі»: в адміністратора — окремий пункт фільтра етапу.
  */
 export function ProjectList() {
   const data = useWeekData();
@@ -27,10 +27,10 @@ export function ProjectList() {
   const [month, setMonth] = useState("");
   const [date, setDate] = useState("");
   const [clientId, setClientId] = useState("");
-  const [stage, setStage] = useState(""); // "" — усі в роботі, "finished", "all", "none" або id етапу
+  const [stage, setStage] = useState(""); // "" — усі в роботі, "finished", "refused", "all", "none" або id етапу
   const [managerChoice, setManagerChoice] = useState<string | null>(null); // null — за замовчуванням
   const user = useCurrentUser();
-  const [view, setView] = useState<"queue" | "passed">("queue");
+  const [view, setView] = useState<"queue" | "passed" | "refused">("queue");
   if (!data) return null;
 
   // Конструктор: проекти, призначені йому (або ще нікому), — у черзі, поки етап не завершено, далі — передані.
@@ -42,21 +42,25 @@ export function ProjectList() {
   const passed = (project: Project) =>
     specUser ? roles.get(project.id)?.done : first !== undefined && stageStatus(data.items, projectLabel(project), first) === "done";
   const tabs = Boolean(specUser || managerTabs);
+  /** Вкладка проекту: відмова, передані далі або в роботі (у черзі). */
+  const tabOf = (project: Project) => (project.refusal ? "refused" : passed(project) ? "passed" : "queue");
 
   const managers = data.people.filter((person) => person.role === "manager");
   const managerId = managerChoice ?? (user?.role === "manager" ? user.id : "");
   const managerName = (id: string) => data.people.find((person) => person.id === id)?.name ?? "—";
 
-  /** Де зараз проект: id етапу в роботі, "finished" або "none" (ще не у виробництві). */
+  /** Де зараз проект: id етапу в роботі, "finished", "refused" (відмова) або "none" (ще не у виробництві). */
   const stageOf = (project: Project) => {
+    if (project.refusal) return "refused";
     const label = projectLabel(project);
     if (isFinished(data, label)) return "finished";
     return data.stages.find((s) => stageStatus(data.items, label, s.id) === "wip")?.id ?? "none";
   };
   const stageName = (id: string) =>
-    id === "finished" ? "Завершено" : id === "none" ? "Ще не у виробництві" : (data.stages.find((s) => s.id === id)?.label ?? "—");
+    id === "finished" ? "Завершено" : id === "refused" ? "Відмова" : id === "none" ? "Ще не у виробництві" : (data.stages.find((s) => s.id === id)?.label ?? "—");
   const stages = new Map(data.projects.map((project) => [project.id, stageOf(project)]));
   const hasNone = [...stages.values()].includes("none");
+  const hasRefused = [...stages.values()].includes("refused");
 
   // Місяці, у які приймали проекти, — новіші першими.
   const months = [...new Set(data.projects.map((p) => p.acceptedOn.slice(0, 7)))].sort().reverse();
@@ -74,17 +78,26 @@ export function ProjectList() {
       (!clientId || project.clientId === clientId) &&
       (!managerId || project.managerId === managerId) &&
       (!specUser || roles.get(project.id)?.creator) &&
-      (!tabs || passed(project) === (view === "passed")) &&
+      (!tabs || tabOf(project) === view) &&
       // Фільтр етапу — для всіх, крім конструктора й вкладки «В роботі» менеджера.
-      (specUser || (managerTabs && view === "queue") || stage === "all" || (stage === "" ? stages.get(project.id) !== "finished" : stages.get(project.id) === stage))
+      (specUser ||
+        (managerTabs && view !== "passed") ||
+        stage === "all" ||
+        (stage === "" ? !["finished", "refused"].includes(stages.get(project.id)!) : stages.get(project.id) === stage))
     );
   });
   // У черзі першими ті, що вже на етапі конструктора, далі — ті, що ще на попередніх етапах.
   const specStage = data.stages.find((s) => s.createsSpec)?.id;
   if (specUser && view === "queue") found.sort((a, b) => Number(stages.get(b.id) === specStage) - Number(stages.get(a.id) === specStage));
-  const countOf = (wanted: boolean) =>
-    data.projects.filter((p) => (specUser ? roles.get(p.id)?.creator : !managerId || p.managerId === managerId) && Boolean(passed(p)) === wanted).length;
-  const showStage = !specUser && !(managerTabs && view === "queue");
+  const countOf = (wanted: typeof view) =>
+    data.projects.filter((p) => (specUser ? roles.get(p.id)?.creator : !managerId || p.managerId === managerId) && tabOf(p) === wanted).length;
+  const showStage = !specUser && !(managerTabs && view !== "passed");
+  // Відмови за причинами — коли список показує саме відмови.
+  const refusedShown = (managerTabs && view === "refused") || stage === "refused";
+  const byReason = refusedShown
+    ? [...found.reduce((map, p) => map.set(refusalReasonName(data, p.refusal?.reasonId ?? null), (map.get(refusalReasonName(data, p.refusal?.reasonId ?? null)) ?? 0) + 1), new Map<string, number>())]
+        .sort((a, b) => b[1] - a[1])
+    : [];
   const filtered = query || month || date || clientId || stage || managerChoice !== null;
 
   const reset = () => {
@@ -100,7 +113,11 @@ export function ProjectList() {
     <>
       {tabs && (
         <div role="tablist" className="no-scrollbar flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg border border-line bg-surface p-1 text-sm">
-          {([["queue", specUser ? "В черзі на обробку" : "В роботі", countOf(false)], ["passed", "Передані далі", countOf(true)]] as const).map(([id, text, count]) => (
+          {([
+            ["queue", specUser ? "В черзі на обробку" : "В роботі", countOf("queue")],
+            ["passed", "Передані далі", countOf("passed")],
+            ...(managerTabs ? ([["refused", "Відмови", countOf("refused")]] as const) : []),
+          ] as const).map(([id, text, count]) => (
             <button
               key={id}
               type="button"
@@ -116,7 +133,11 @@ export function ProjectList() {
       )}
       {managerTabs && (
         <p className="text-xs text-ink-2">
-          {view === "queue" ? "Прийом ще не завершено: свої проекти можна змінювати." : "Передано на наступний етап: змінює лише адміністратор."}
+          {view === "queue"
+            ? "Прийом ще не завершено: свої проекти можна змінювати."
+            : view === "passed"
+              ? "Передано на наступний етап: змінює лише адміністратор."
+              : "Клієнт відмовився до авансу: проект лише для перегляду, повернути в роботу можна в картці."}
         </p>
       )}
 
@@ -164,7 +185,8 @@ export function ProjectList() {
             ))}
             {hasNone && !managerTabs && <option value="none">Ще не у виробництві</option>}
             <option value="finished">Завершені</option>
-            <option value="all">Усі, разом із завершеними</option>
+            {hasRefused && !managerTabs && <option value="refused">Відмови</option>}
+            <option value="all">Усі, разом із завершеними й відмовами</option>
           </select>
         )}
         {managers.length > 1 && (
@@ -189,6 +211,11 @@ export function ProjectList() {
           Проектів: <span className="text-ink tabular-nums">{found.length}</span>
           {!tabs && found.length !== all.length && ` із ${all.length}`}
         </span>
+        {byReason.length > 0 && (
+          <span>
+            {byReason.map(([reason, count]) => `${reason}: ${count}`).join(" · ")}
+          </span>
+        )}
         {filtered && (
           <button type="button" className="underline hover:text-ink" onClick={reset}>
             Скинути фільтри
@@ -218,6 +245,8 @@ export function ProjectList() {
                       className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${
                         finishedProject
                           ? "bg-success/15 text-success"
+                          : project.refusal
+                            ? "bg-critical/15 text-critical"
                           : stages.get(project.id) === "none"
                             ? "bg-wash text-ink-2"
                             : "bg-accent-wash text-accent-ink"
@@ -232,8 +261,15 @@ export function ProjectList() {
                       {project.client} · {dateLabel(project.acceptedOn)}
                       {managers.length > 1 && ` · ${managerName(project.managerId)}`}
                     </span>
+                    {project.refusal && (
+                      <span className="text-xs text-critical">
+                        {refusalReasonName(data, project.refusal.reasonId)}
+                        {project.refusal.note && ` · ${project.refusal.note}`}
+                      </span>
+                    )}
                   </span>
-                  {canManage && (
+                  {/* Відмова: оплат не буде, тож смужку оплати не показуємо. */}
+                  {canManage && !project.refusal && (
                     <span className="mt-auto grid gap-2 border-t border-line pt-3 text-sm">
                       <span className="flex items-baseline justify-between gap-2">
                         <span className="font-semibold tabular-nums">{cost === null ? "Не вписано" : money(cost)}</span>

@@ -1,26 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { todayIso } from "@/lib/dates";
+import { monthLabel, shiftMonth, todayIso } from "@/lib/dates";
 import { money } from "@/lib/materials";
-import { accrualOf, doneInMonth } from "@/lib/salary";
+import { accrualOf, balanceOf, doneInMonth, paidTotal } from "@/lib/salary";
 import { useCurrentUser, useIsAdmin, useWeekData } from "@/lib/week-store";
 import { AccrualDetails } from "./AccrualDetails";
 
 const field = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
-const MONTHS = ["Січень", "Лютий", "Березень", "Квітень", "Травень", "Червень", "Липень", "Серпень", "Вересень", "Жовтень", "Листопад", "Грудень"];
-
-/** «РРРР-ММ» на delta місяців уперед або назад. */
-function shiftMonth(month: string, delta: number) {
-  const [year, m] = month.split("-").map(Number);
-  const index = year * 12 + (m - 1) + delta;
-  return `${Math.floor(index / 12)}-${String((index % 12) + 1).padStart(2, "0")}`;
-}
-
-const monthLabel = (month: string) => `${MONTHS[Number(month.slice(5)) - 1]} ${month.slice(0, 4)}`;
 const dayLabel = (iso: string) => `${iso.slice(8)}.${iso.slice(5, 7)}`;
 
-/** Виконане за місяць і нарахована зарплата. Кожен бачить своє, адміністратор — будь-кого. */
+/**
+ * Виконане за місяць, нарахована зарплата, виплати й залишок. Кожен бачить своє, адміністратор — будь-кого.
+ * Виплати вносить адміністратор на сторінці «Зарплата» (рішення користувача 2026-11-26).
+ */
 export function DoneList() {
   const data = useWeekData();
   const user = useCurrentUser();
@@ -33,6 +26,9 @@ export function DoneList() {
   const done = doneInMonth(data, person.id, month).map((entry) => ({ ...entry, accrual: accrualOf(data, entry) }));
   const total = done.reduce((sum, { accrual }) => sum + accrual.total, 0);
   const stageName = (id: string) => data.stages.find((stage) => stage.id === id)?.label ?? "етап прибрано";
+  const paid = paidTotal(data, person.id, month);
+  const payouts = data.payouts.filter((p) => p.personId === person.id && p.date.startsWith(month)).sort((a, b) => b.date.localeCompare(a.date));
+  const balance = balanceOf(data, person.id);
 
   return (
     <>
@@ -53,7 +49,7 @@ export function DoneList() {
       </div>
 
       {/* Підсумок місяця */}
-      <dl className="grid grid-cols-2 gap-3">
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <div className="rounded-lg border border-line bg-surface p-4">
           <dt className="text-xs text-ink-2">Нараховано</dt>
           <dd className={`mt-1 text-2xl font-semibold tabular-nums ${total > 0 ? "text-success" : ""}`}>{money(total)}</dd>
@@ -62,7 +58,33 @@ export function DoneList() {
           <dt className="text-xs text-ink-2">Виконано етапів</dt>
           <dd className="mt-1 text-2xl font-semibold tabular-nums">{done.length}</dd>
         </div>
+        <div className="rounded-lg border border-line bg-surface p-4">
+          <dt className="text-xs text-ink-2">Виплачено за місяць</dt>
+          <dd className="mt-1 text-2xl font-semibold tabular-nums">{money(paid)}</dd>
+        </div>
+        <div className="rounded-lg border border-line bg-surface p-4">
+          <dt className="text-xs text-ink-2">{balance < 0 ? "Переплата" : "Залишок до виплати"}</dt>
+          <dd className={`mt-1 text-2xl font-semibold tabular-nums ${balance > 0 ? "text-warning" : ""}`}>{money(Math.abs(balance))}</dd>
+          <dd className="text-xs text-ink-2">за весь час</dd>
+        </div>
       </dl>
+
+      {payouts.length > 0 && (
+        <section className="grid gap-2">
+          <h2 className="font-semibold">Виплати за місяць</h2>
+          <ul className="divide-y divide-line rounded-lg border border-line bg-surface text-sm">
+            {payouts.map((payout) => (
+              <li key={payout.id} className="flex items-baseline justify-between gap-3 px-4 py-2.5">
+                <span className="min-w-0">
+                  {dayLabel(payout.date)}
+                  {payout.note && <span className="text-ink-2"> · {payout.note}</span>}
+                </span>
+                <span className="font-semibold tabular-nums">{money(payout.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {done.length === 0 ? (
         <p className="text-sm text-ink-2">За цей місяць відмічених етапів немає.</p>
@@ -84,7 +106,7 @@ export function DoneList() {
           ))}
         </ul>
       )}
-      <p className="text-xs text-ink-2">Прототип: суми рахуються з кошторису менеджера за поточними цінами й ставками, дані вигадані.</p>
+      <p className="text-xs text-ink-2">Прототип: суми рахуються з кошторису менеджера за цінами й ставками, зафіксованими для кошторису; дані вигадані.</p>
     </>
   );
 }

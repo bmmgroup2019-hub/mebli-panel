@@ -13,6 +13,7 @@ import { ProjectEstimate } from "./ProjectEstimate";
 import { ProjectProfit } from "./ProjectProfit";
 import { ProjectSpec } from "./ProjectSpec";
 import { OrderBlank } from "./OrderBlank";
+import { RefuseButton, RefusalNote } from "./ProjectRefusal";
 
 const input = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
 const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
@@ -45,7 +46,7 @@ export function ProjectCard({ id }: { id: string }) {
   const access = projectAccess(data, user, project);
   const managerName = data.people.find((person) => person.id === project.managerId)?.name;
   const readOnlyNote =
-    user?.role !== "manager" || access.canEdit
+    user?.role !== "manager" || access.canEdit || project.refusal
       ? ""
       : access.own
         ? finished
@@ -82,6 +83,8 @@ export function ProjectCard({ id }: { id: string }) {
             </p>
             <h1 className="text-2xl font-semibold sm:text-3xl">{project.product}</h1>
           </div>
+          <div className="flex flex-wrap gap-1.5">
+          <RefuseButton project={project} />
           {canManage && (
             <button type="button" className={`${button} inline-flex items-center gap-2 print:hidden`} onClick={() => setBlank(true)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="size-4">
@@ -90,10 +93,13 @@ export function ProjectCard({ id }: { id: string }) {
               Друк бланка
             </button>
           )}
+          </div>
         </div>
         {/* Мітки: строк, менеджер, позначки змін */}
         <div className="flex flex-wrap gap-1.5 text-xs">
-          {finished ? (
+          {project.refusal ? (
+            <span className="rounded-full bg-critical/15 px-2.5 py-1 text-critical">Відмова {project.refusal.on.split("-").reverse().join(".")}</span>
+          ) : finished ? (
             <span className="rounded-full bg-success/15 px-2.5 py-1 text-success">Завершено</span>
           ) : (
             <span
@@ -116,6 +122,8 @@ export function ProjectCard({ id }: { id: string }) {
         </div>
         {readOnlyNote && <p className="text-xs text-ink-2">{readOnlyNote}</p>}
       </header>
+
+      <RefusalNote project={project} />
 
       <div
         role="tablist"

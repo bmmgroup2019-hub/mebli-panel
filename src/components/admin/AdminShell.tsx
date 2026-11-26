@@ -32,6 +32,12 @@ export const ADMIN_SECTIONS = [
     count: (d: WeekData) => `Типів: ${d.issueTypes.length}`,
   },
   {
+    href: "/admin/refusal-reasons",
+    label: "Причини відмов",
+    about: "Чому клієнти відмовляються до авансу: список для менеджерів.",
+    count: (d: WeekData) => `Причин: ${d.refusalReasons.length}`,
+  },
+  {
     href: "/admin/materials",
     label: "Матеріали",
     about: "Групи матеріалів, одиниці виміру й виробники.",

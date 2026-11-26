@@ -64,6 +64,12 @@ export type Issue = {
 
 export type IssueType = { id: string; name: string };
 
+/** Причина відмови клієнта: список веде адміністратор. */
+export type RefusalReason = { id: string; name: string };
+
+/** Виплата працівнику (аванс чи зарплата): вносить адміністратор. Залишок = нараховане − виплачене. */
+export type Payout = { id: string; personId: string; date: string; amount: number; note: string };
+
 /**
  * Налаштування вартості проекту, веде адміністратор.
  * marginPercent — націнка виробництва від вартості матеріалів; floorRate — заноска, грн за поверх;
@@ -79,6 +85,8 @@ export type WeekData = {
   company: Company;
   stages: Stage[];
   issueTypes: IssueType[];
+  refusalReasons: RefusalReason[];
+  payouts: Payout[];
   specGroups: SpecGroup[];
   units: string[];
   makers: string[]; // виробники матеріалів, веде адміністратор
@@ -93,7 +101,7 @@ export type WeekData = {
   sessionId: string | null;
 };
 
-const KEY = "panel-week-v47";
+const KEY = "panel-week-v48";
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 const PRICING: Pricing = { marginPercent: 60, floorRate: 150, floorStageId: "install" };
@@ -147,15 +155,41 @@ function seed(): WeekData {
   });
   const issueTypes: IssueType[] = ["Немає матеріалів", "Брак, перезамовити", "Інше"].map((name) => ({ id: newId(), name }));
   const [noMaterials, defect, other] = issueTypes;
+  const refusalReasons: RefusalReason[] = ["Дорого", "Довго чекати", "Пішов до інших", "Передумав", "Інше"].map((name) => ({ id: newId(), name }));
   const issue = (order: string, type: IssueType | null, text: string, author = owner.name): Issue => ({
     id: newId(), order, typeId: type?.id ?? null, text, author, createdOn: today, resolved: false,
   });
   // У прикладі шафа й тумба — проекти другого менеджера, решта — першого.
   // Проекти прикладу вже мають кошториси, тож ціни одразу зафіксовано.
   const prices = { materials: MOCK_MATERIALS, works: MOCK_WORKS, stages: MOCK_STAGES, pricing: PRICING };
-  const projects = mockProjects(week).map((project) => ({
+  // Приклад відмови: другий менеджер прорахував шафу, клієнт пішов до інших.
+  const refused: Project = {
+    id: "vidmova",
+    number: "245",
+    clientId: "c-bondar",
+    client: "Бондар",
+    product: "Шафа в передпокій",
+    acceptedOn: addDays(week, -10),
+    dueOn: "",
+    payments: [],
+    spec: [],
+    estimate: [
+      { id: "vidmova-e0", groupId: "boards", name: "ДСП Kronospan 0110 SM Білий корпусний, 18 мм", quantity: 2, unit: "лист" },
+      { id: "vidmova-e1", groupId: "fasteners", name: "Конфірмат Muller 7×50 мм", quantity: 80, unit: "шт" },
+    ],
+    extras: [],
+    clientPrice: 18500,
+    managerId: "",
+    adminEditedOn: null,
+    changes: [],
+    details: { ...EMPTY_DETAILS },
+    floor: null,
+    refusal: { on: addDays(week, -3), reasonId: refusalReasons[2].id, note: "Знайшли дешевше в іншій майстерні", by: "Менеджер 2" },
+    frozen: null,
+  };
+  const projects = [...mockProjects(week), refused].map((project) => ({
     ...project,
-    managerId: ["shafa", "tumba"].includes(project.id) ? manager2.id : manager.id,
+    managerId: ["shafa", "tumba", "vidmova"].includes(project.id) ? manager2.id : manager.id,
     frozen: keepFrozen(prices, project),
   }));
   const [kitchen, wardrobe, hallway, dressing, stand, chest] = [
@@ -167,6 +201,9 @@ function seed(): WeekData {
     company: { name: "Меблева майстерня (приклад)", phone: "000 000 00 00", address: "м. Київ, вул. Прикладна, 1", extra: "", installTerms: "", logo: "" },
     stages: MOCK_STAGES,
     issueTypes,
+    refusalReasons,
+    // Приклад виплати: аванс конструктору.
+    payouts: [{ id: newId(), personId: constructor.id, date: addDays(week, -1) < today ? addDays(week, -1) : today, amount: 1000, note: "Аванс" }],
     specGroups: MOCK_SPEC_GROUPS,
     units: MOCK_UNITS,
     makers: MOCK_MAKERS,
@@ -182,7 +219,7 @@ function seed(): WeekData {
         const accepted = mondayOf(project.acceptedOn);
         // Шафа-купе ще на прийомі: аванс є, на наступний етап не передано.
         return item(projectLabel(project), "intake", accepted, project.id === "kupe" ? null : accepted, project.managerId);
-      }),
+      }).filter((entry) => !entry.order.startsWith("№245")), // відмова: на «Тижні» її вже немає
       item(kitchen, "project", addDays(week, -28), lastWeek),
       item(kitchen, "cnc", lastWeek, week),
       item(kitchen, "edge", week),
@@ -343,6 +380,8 @@ export function specRole(data: WeekData, user: Person, project: Project) {
  */
 export function projectAccess(data: WeekData, user: Person | null, project: Project) {
   if (!user) return { canEdit: false, canPay: false, canPurchase: false, own: false };
+  // Відмова: проект лише для перегляду, поки його не повернули в роботу.
+  if (project.refusal) return { canEdit: false, canPay: false, canPurchase: false, own: user.role === "manager" && project.managerId === user.id };
   if (user.role === "admin") return { canEdit: true, canPay: true, canPurchase: true, own: project.managerId === user.id };
   // Закупівельник відмічає закупки в усіх проектах, решту не змінює.
   if (user.role === "buyer") return { canEdit: false, canPay: false, canPurchase: true, own: false };
@@ -449,7 +488,7 @@ export const nextProjectNumber = (projects: Project[]) =>
 
 /** id нового проекту або null, якщо замовника немає. Номер проставляється автоматично. */
 export function addProject(
-  fields: Omit<Project, "id" | "number" | "client" | "payments" | "spec" | "estimate" | "extras" | "clientPrice" | "managerId" | "adminEditedOn" | "changes" | "details" | "frozen">,
+  fields: Omit<Project, "id" | "number" | "client" | "payments" | "spec" | "estimate" | "extras" | "clientPrice" | "managerId" | "adminEditedOn" | "changes" | "details" | "frozen" | "refusal">,
 ) {
   const current = read();
   const client = current.clients.find((c) => c.id === fields.clientId);
@@ -469,6 +508,7 @@ export function addProject(
     adminEditedOn: null,
     changes: [],
     details: { ...EMPTY_DETAILS },
+    refusal: null,
     frozen: null,
   };
   write({ ...current, projects: [...current.projects, project] });
@@ -1044,6 +1084,83 @@ export function addIssue(order: string, typeId: string | null, text: string, aut
 export function toggleIssue(id: string) {
   const current = read();
   write({ ...current, issues: current.issues.map((i) => (i.id === id ? { ...i, resolved: !i.resolved } : i)) });
+}
+
+/**
+ * Позначити відмову клієнта може менеджер проекту й адміністратор — лише до авансу.
+ * Повернути в роботу — ті самі люди.
+ */
+export function canRefuse(user: Person | null, project: Project) {
+  if (!user || project.payments.length > 0) return false;
+  return user.role === "admin" || (user.role === "manager" && project.managerId === user.id);
+}
+
+/** Відмова: незроблені записи проекту йдуть з «Тижня». false, якщо вже є аванс. */
+export function refuseProject(id: string, reasonId: string | null, note: string) {
+  const current = read();
+  const project = current.projects.find((p) => p.id === id);
+  const user = current.people.find((person) => person.id === current.sessionId) ?? null;
+  if (!project || project.refusal || !canRefuse(user, project)) return false;
+  const label = projectLabel(project);
+  write({
+    ...current,
+    projects: current.projects.map((p) => (p.id === id ? { ...p, refusal: { on: todayIso(), reasonId, note: note.trim(), by: user?.name ?? "" } } : p)),
+    items: current.items.filter((item) => !(item.order === label && item.doneWeek === null)),
+  });
+  return true;
+}
+
+/** Повернути в роботу: проект знову стає на прийом у поточному тижні. */
+export function returnProject(id: string) {
+  const current = read();
+  const project = current.projects.find((p) => p.id === id);
+  const user = current.people.find((person) => person.id === current.sessionId) ?? null;
+  if (!project?.refusal || !canRefuse(user, project)) return;
+  write({ ...current, projects: current.projects.map((p) => (p.id === id ? { ...p, refusal: null } : p)) });
+  const first = current.stages[0];
+  if (first) addItem(projectLabel(project), first.id, mondayOf(todayIso()));
+}
+
+const reasonTaken = (name: string, exceptId?: string) =>
+  read().refusalReasons.some((r) => r.name.toLowerCase() === name.toLowerCase() && r.id !== exceptId);
+
+/** false, якщо така причина вже є. */
+export function addRefusalReason(name: string) {
+  if (reasonTaken(name)) return false;
+  const current = read();
+  write({ ...current, refusalReasons: [...current.refusalReasons, { id: newId(), name }] });
+  return true;
+}
+
+export function renameRefusalReason(id: string, name: string) {
+  if (reasonTaken(name, id)) return false;
+  const current = read();
+  write({ ...current, refusalReasons: current.refusalReasons.map((r) => (r.id === id ? { ...r, name } : r)) });
+  return true;
+}
+
+/** Відмови з цією причиною лишаються, але вже без причини. */
+export function removeRefusalReason(id: string) {
+  const current = read();
+  write({
+    ...current,
+    refusalReasons: current.refusalReasons.filter((r) => r.id !== id),
+    projects: current.projects.map((p) => (p.refusal?.reasonId === id ? { ...p, refusal: { ...p.refusal, reasonId: null } } : p)),
+  });
+}
+
+export const refusalReasonName = (data: WeekData, id: string | null) =>
+  data.refusalReasons.find((r) => r.id === id)?.name ?? "Без причини";
+
+export function addPayout(personId: string, date: string, amount: number, note: string) {
+  if (!(amount > 0) || !date) return;
+  const current = read();
+  write({ ...current, payouts: [...current.payouts, { id: newId(), personId, date, amount, note: note.trim() }] });
+}
+
+export function removePayout(id: string) {
+  const current = read();
+  write({ ...current, payouts: current.payouts.filter((p) => p.id !== id) });
 }
 
 /** Приклади створюють нових людей, тому після скидання треба ввійти знову. */

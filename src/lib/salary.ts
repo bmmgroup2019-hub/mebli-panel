@@ -158,6 +158,18 @@ export function projectProfit(data: WeekData, project: Project) {
  */
 export type DoneEntry = { item: WorkItem; handover: boolean; on: string };
 
+/** Скільки нараховано людині: за місяць («РРРР-ММ») або за весь час (порожній місяць). */
+export const accruedTotal = (data: WeekData, personId: string, month = "") =>
+  doneInMonth(data, personId, month).reduce((sum, entry) => sum + accrualOf(data, entry).total, 0);
+
+/** Скільки виплачено людині: за місяць або за весь час. */
+export const paidTotal = (data: WeekData, personId: string, month = "") =>
+  data.payouts.filter((p) => p.personId === personId && p.date.startsWith(month)).reduce((sum, p) => sum + p.amount, 0);
+
+/** Залишок до виплати за весь час, до копійки; від'ємний — переплата. */
+export const balanceOf = (data: WeekData, personId: string) =>
+  Math.round((accruedTotal(data, personId) - paidTotal(data, personId)) * 100) / 100;
+
 /** Етапи, які людина відмітила за місяць (month — «РРРР-ММ»), і здачі її замовлень, новіші першими. */
 export function doneInMonth(data: WeekData, personId: string, month: string): DoneEntry[] {
   const mine = data.items.filter((item) => item.doneOn && assigneeOf(item, data.people) === personId);

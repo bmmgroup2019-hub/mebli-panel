@@ -66,7 +66,7 @@ export function Overview({ data, week }: { data: WeekData; week: string }) {
 
   const waiting = data.projects.filter((project) => {
     const label = projectLabel(project);
-    return !rows.some((row) => row.order === label) && !isFinished(data, label);
+    return !project.refusal && !rows.some((row) => row.order === label) && !isFinished(data, label);
   });
   const unassigned = open.filter(hasNobody);
   const lastStage = data.stages.at(-1)?.id;

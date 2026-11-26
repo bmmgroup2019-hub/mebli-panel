@@ -74,6 +74,12 @@ const ICONS: Record<string, ReactNode> = {
     </>
   ),
   "/materials": <path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8" />,
+  "/salary": (
+    <>
+      <rect x="2" y="6" width="20" height="14" rx="2" />
+      <path d="M16 6V4.5A1.5 1.5 0 0 0 14.5 3h-9A1.5 1.5 0 0 0 4 4.5V6M16 13h.01" />
+    </>
+  ),
   "/admin": <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />,
   more: (
     <>
@@ -110,6 +116,7 @@ const SECTIONS: { href: string; label: string; show: (w: Who) => boolean; main: 
   // Закупівельник не має відрядної зарплати, тож «Виконано» йому ні до чого.
   { href: "/done", label: "Виконано", show: (w) => !w.buyer, main: (w) => !w.office },
   { href: "/materials", label: "Матеріали", show: (w) => w.office || w.buyer, main: () => false },
+  { href: "/salary", label: "Зарплата", show: (w) => w.admin, main: () => false },
   { href: "/admin", label: "Адмін", show: (w) => w.admin, main: () => false },
 ];
 

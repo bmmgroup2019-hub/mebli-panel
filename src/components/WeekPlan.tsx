@@ -119,7 +119,8 @@ function Plan({ data }: { data: WeekData }) {
 function OrderDatalist({ projects }: { projects: WeekData["projects"] }) {
   return (
     <datalist id={ORDER_LIST}>
-      {projects.map((project) => <option key={project.id} value={projectLabel(project)} />)}
+      {/* Відмови на «Тиждень» не ставимо: спершу їх повертають у роботу. */}
+      {projects.filter((project) => !project.refusal).map((project) => <option key={project.id} value={projectLabel(project)} />)}
     </datalist>
   );
 }

@@ -56,6 +56,12 @@ export type Extra = { id: string; name: string; amount: number };
  */
 export type ChangeNote = { id: string; date: string; author: string; key: string; label: string; from: string; to: string };
 
+/**
+ * Відмова клієнта до авансу (рішення користувача 2026-11-26): проект іде з «Тижня» й «В роботі» до «Відмов».
+ * reasonId — причина зі списку адміністратора (null — без причини або причину прибрали); note — коментар менеджера.
+ */
+export type Refusal = { on: string; reasonId: string | null; note: string; by: string };
+
 /** Замовник: окремий запис, проекти посилаються на нього. Поверх — для заноски. */
 export type Client = { id: string; name: string; phone: string; address: string };
 
@@ -94,6 +100,7 @@ export type Project = {
   changes: ChangeNote[]; // зміни після авансу, щоб погодити їх із замовником
   details: OrderDetails; // загальні відомості для бланка прийому
   floor: number | null; // поверх для заноски: в замовленні, бо один замовник може замовляти на різні адреси
+  refusal: Refusal | null; // клієнт відмовився (лише до авансу); null — проект живий
   frozen: PriceSnapshot | null; // ціни, зафіксовані з першого запису кошторису (prices.ts); порожній кошторис — null
 };
 
@@ -194,7 +201,7 @@ export const projectLabel = (project: Pick<Project, "number" | "client" | "produ
 const rows = (id: string, list: [groupId: string, name: string, quantity: number, unit: string][]): SpecRow[] =>
   list.map(([groupId, name, quantity, unit], index) => ({ id: `${id}-s${index}`, groupId, name, quantity, unit }));
 
-type ProjectDraft = Omit<Project, "estimate" | "extras" | "clientId" | "clientPrice" | "managerId" | "adminEditedOn" | "changes" | "details" | "frozen" | "floor">;
+type ProjectDraft = Omit<Project, "estimate" | "extras" | "clientId" | "clientPrice" | "managerId" | "adminEditedOn" | "changes" | "details" | "frozen" | "floor" | "refusal">;
 
 /** Вартість, яку менеджер назвав клієнтові (вигадана, трохи вища за розрахункову). */
 const MOCK_CLIENT_PRICES: Record<string, number> = {
@@ -277,6 +284,7 @@ function withEstimate(project: ProjectDraft): Project {
     changes: MOCK_CHANGES[project.id] ?? [],
     details: { ...EMPTY_DETAILS },
     floor: MOCK_FLOORS[project.client] ?? null,
+    refusal: null,
     frozen: null, // фіксується в сховищі
   };
 }

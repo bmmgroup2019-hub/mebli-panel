@@ -39,7 +39,7 @@ export function ClientsBase() {
       .join(" ")
       .toLowerCase();
     const byText = words.every((word) => text.includes(word)) || (digits.length >= 3 && client.phone.replace(/\D/g, "").includes(digits));
-    const active = projects.some((project) => !done(project));
+    const active = projects.some((project) => !done(project) && !project.refusal);
     const byStatus =
       !status ||
       (status === "active" && active) ||
@@ -112,7 +112,11 @@ export function ClientsBase() {
                             {foreign(project) && " · лише перегляд"}
                           </span>
                         </span>
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${done(project) ? "bg-success/15 text-success" : "bg-accent-wash text-accent-ink"}`}>{done(project) ? "завершено" : "у роботі"}</span>
+                        <span
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-xs ${project.refusal ? "bg-critical/15 text-critical" : done(project) ? "bg-success/15 text-success" : "bg-accent-wash text-accent-ink"}`}
+                        >
+                          {project.refusal ? "відмова" : done(project) ? "завершено" : "у роботі"}
+                        </span>
                       </li>
                     ))}
                   </ul>
