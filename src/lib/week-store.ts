@@ -4,6 +4,7 @@ import { addDays, mondayOf, todayIso } from "./dates";
 import {
   type PurchaseStatus,
   MOCK_CLIENTS,
+  MOCK_INTAKE,
   MOCK_MAKERS,
   MOCK_MATERIALS,
   MOCK_SPEC_GROUPS,
@@ -101,7 +102,7 @@ export type WeekData = {
   sessionId: string | null;
 };
 
-const KEY = "panel-week-v49";
+const KEY = "panel-week-v50";
 const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 
 const PRICING: Pricing = { marginPercent: 60, floorRate: 150, floorStageId: "install" };
@@ -189,7 +190,7 @@ function seed(): WeekData {
   };
   const projects = [...mockProjects(week), refused].map((project) => ({
     ...project,
-    managerId: ["shafa", "tumba", "vidmova"].includes(project.id) ? manager2.id : manager.id,
+    managerId: ["shafa", "tumba", "vidmova"].includes(project.id) || MOCK_INTAKE.find((q) => q.id === project.id)?.manager === 2 ? manager2.id : manager.id,
     frozen: keepFrozen(prices, project),
   }));
   const [kitchen, wardrobe, hallway, dressing, stand, chest] = [
@@ -217,9 +218,10 @@ function seed(): WeekData {
       // Прийом і розрахунок: тиждень прийому замовлення.
       ...projects.map((project) => {
         const accepted = mondayOf(project.acceptedOn);
-        // Шафа-купе ще на прийомі: аванс є, на наступний етап не передано.
+        // Шафа-купе й прораховані замовлення ще на прийомі: на наступний етап не передано.
+        const waiting = project.id === "kupe" || MOCK_INTAKE.some((q) => q.id === project.id);
         // Прийом у роботі в менеджера з дня, коли він прийняв замовлення.
-        return { ...item(projectLabel(project), "intake", accepted, project.id === "kupe" ? null : accepted, project.managerId), startedOn: project.acceptedOn };
+        return { ...item(projectLabel(project), "intake", accepted, waiting ? null : accepted, project.managerId), startedOn: project.acceptedOn };
       }).filter((entry) => !entry.order.startsWith("№245")), // відмова: на «Тижні» її вже немає
       item(kitchen, "project", addDays(week, -28), lastWeek),
       item(kitchen, "cnc", lastWeek, week),

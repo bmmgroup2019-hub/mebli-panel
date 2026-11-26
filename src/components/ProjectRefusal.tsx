@@ -59,7 +59,7 @@ function RefuseDialog({ project, onClose }: { project: Project; onClose: () => v
       >
         <h2 id="refuse-title" className="text-lg font-semibold">Клієнт відмовився</h2>
         <p className="text-sm text-ink-2">
-          №{project.number} {project.product} піде з «Тижня» й зі списку в роботі до «Відмов». Повернути в роботу можна будь-коли.
+          №{project.number} {project.product} піде з «Прийому» до «Відмов». Повернути в роботу можна будь-коли.
         </p>
         <label className="grid gap-1 text-xs font-medium text-ink-2">
           Причина

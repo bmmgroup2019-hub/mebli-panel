@@ -8,6 +8,7 @@ import { NewProjectButton } from "./NewProjectButton";
 import { monthLabel } from "@/lib/dates";
 
 const field = "w-full min-w-0 rounded-lg border border-line px-2.5 py-2 text-sm text-ink";
+const button = "rounded-lg border border-line bg-surface px-3 py-1.5 text-sm hover:bg-wash";
 
 const money = (value: number) => `${Math.round(value).toLocaleString("uk-UA")} грн`;
 const dateLabel = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
@@ -31,6 +32,8 @@ export function ProjectList() {
   const [managerChoice, setManagerChoice] = useState<string | null>(null); // null — за замовчуванням
   const user = useCurrentUser();
   const [view, setView] = useState<"queue" | "passed" | "refused">("queue");
+  // На телефоні фільтри сховано за кнопкою, щоб картки було видно одразу.
+  const [filtersOpen, setFiltersOpen] = useState(false);
   if (!data) return null;
 
   // Конструктор: проекти, призначені йому (або ще нікому), — у черзі, поки етап не завершено, далі — передані.
@@ -98,7 +101,8 @@ export function ProjectList() {
     ? [...found.reduce((map, p) => map.set(refusalReasonName(data, p.refusal?.reasonId ?? null), (map.get(refusalReasonName(data, p.refusal?.reasonId ?? null)) ?? 0) + 1), new Map<string, number>())]
         .sort((a, b) => b[1] - a[1])
     : [];
-  const filtered = query || month || date || clientId || stage || managerChoice !== null;
+  const activeFilters = [query, month, date, clientId, stage, managerChoice !== null].filter(Boolean).length;
+  const filtered = activeFilters > 0;
 
   const reset = () => {
     setQuery("");
@@ -143,14 +147,24 @@ export function ProjectList() {
 
       {/* Панель фільтрів; кнопка нового проекту — праворуч над нею. */}
       <div className="grid gap-3 rounded-lg border border-line bg-surface p-3 sm:p-4">
-      {canManage && (
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-semibold">Фільтри</span>
-          <NewProjectButton />
-        </div>
-      )}
+      <div className={`flex items-center justify-between gap-3 ${canManage ? "" : "sm:hidden"}`}>
+        <button
+          type="button"
+          aria-expanded={filtersOpen}
+          onClick={() => setFiltersOpen(!filtersOpen)}
+          className={`${button} flex items-center justify-between sm:hidden flex-1`}
+        >
+          <span>
+            Фільтри
+            {activeFilters > 0 && <span className="ml-1.5 rounded-full bg-accent-wash px-1.5 text-xs text-accent-ink tabular-nums">{activeFilters}</span>}
+          </span>
+          <span aria-hidden="true" className="text-ink-2">{filtersOpen ? "▲" : "▼"}</span>
+        </button>
+        {canManage && <span className="hidden text-sm font-semibold sm:inline">Фільтри</span>}
+        {canManage && <NewProjectButton />}
+      </div>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      <div className={`${filtersOpen ? "grid" : "hidden"} gap-2 sm:grid sm:grid-cols-2 lg:grid-cols-3`}>
         <input
           type="search"
           value={query}

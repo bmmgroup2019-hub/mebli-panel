@@ -45,7 +45,11 @@ function Plan({ data }: { data: WeekData }) {
   const [thisWeek] = useState(() => mondayOf(todayIso()));
   const [week, setWeek] = useState(thisWeek);
   const isAdmin = useIsAdmin();
-  const items = itemsOfWeek(data.items, week);
+  // Прийом — на окремій сторінці «Прийом»: тут лише виробництво.
+  const stages = data.stages.filter((stage) => !isIntake(data, stage.id));
+  const items = itemsOfWeek(data.items, week).filter((item) => !isIntake(data, item.stage));
+  const canManage = useCanManage();
+  const intakeCount = data.items.filter((item) => isIntake(data, item.stage) && item.doneWeek === null).length;
   const doneCount = items.filter((i) => i.doneWeek === week).length;
   const navButton = "px-3 py-1.5 text-sm text-ink-2 hover:bg-wash hover:text-ink";
 
@@ -61,7 +65,7 @@ function Plan({ data }: { data: WeekData }) {
           </p>
           <h1 className="text-2xl font-semibold sm:text-3xl">Тиждень {isoWeek(week)}</h1>
           {/* Загальний поступ тижня */}
-          <div className="mt-1 flex items-center gap-2.5 text-sm text-ink-2">
+          <div className="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-1 text-sm text-ink-2">
             <span className="block h-1.5 w-32 rounded-full bg-wash" aria-hidden="true">
               <span
                 className="block h-full rounded-full bg-success"
@@ -71,6 +75,11 @@ function Plan({ data }: { data: WeekData }) {
             <span>
               Зроблено <span className="text-ink tabular-nums">{doneCount}</span> із <span className="tabular-nums">{items.length}</span>
             </span>
+            {canManage && (
+              <Link href="/intake" className="text-ink-2 underline hover:text-ink">
+                На прийомі: {intakeCount}
+              </Link>
+            )}
           </div>
         </div>
         <div className="flex overflow-hidden rounded-lg border border-line bg-surface">
@@ -92,10 +101,10 @@ function Plan({ data }: { data: WeekData }) {
       */}
       <section
         aria-label="Фронт робіт"
-        style={{ "--cols": data.stages.length } as CSSProperties}
+        style={{ "--cols": stages.length } as CSSProperties}
         className="grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-[repeat(var(--cols),minmax(0,1fr))] xl:gap-2"
       >
-        {data.stages.map((stage) => (
+        {stages.map((stage) => (
           <StageColumn
             key={stage.id}
             stage={stage.id}

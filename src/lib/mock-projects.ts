@@ -252,13 +252,104 @@ const MOCK_EXTRAS: Record<string, [name: string, amount: number][]> = {
   garderobna: [["Доставка", 1200]],
 };
 /** Замовники прикладу вигадані: телефони з нулями, вулиці неіснуючі. */
-export const MOCK_CLIENTS: Client[] = [
+const BASE_CLIENTS: Client[] = [
   { id: "c-koval", name: "Коваль", phone: "067 000 00 01", address: "м. Київ, вул. Прикладна, 12, кв. 45" },
   { id: "c-tkachenko", name: "Ткаченко", phone: "050 000 00 02", address: "м. Бровари, вул. Умовна, 3, кв. 8" },
   { id: "c-lytvyn", name: "Литвин", phone: "063 000 00 03", address: "м. Київ, просп. Вигаданий, 101, кв. 17" },
   { id: "c-moroz", name: "Мороз", phone: "097 000 00 04", address: "м. Ірпінь, вул. Тестова, 5, кв. 90" },
   { id: "c-bondar", name: "Бондар", phone: "066 000 00 05", address: "с. Зразкове, вул. Садова, 7" },
 ];
+
+/**
+ * Прораховані замовлення на прийомі (вигадані): менеджер склав кошторис і назвав ціну, клієнт ще вирішує
+ * або вже вніс аванс. Так виглядає звичайне навантаження: у «Менеджера» 8 замовлень на прийомі, у «Менеджера 2» — 10.
+ * manager — 1 або 2; accepted — за скільки днів до понеділка поточного тижня прийнято; advance — аванс (0 — ще немає).
+ */
+const ESTIMATE_TEMPLATES: Record<string, [groupId: string, name: string, quantity: number, unit: string][]> = {
+  small: [
+    ["boards", "ДСП Kronospan 0164 PE Антрацит, 18 мм", 1, "лист"],
+    ["edging", "Крайка ПВХ 0164 PE Антрацит, 21×0,8 мм", 16, "пог. м"],
+    ["fasteners", "Конфірмат Muller 7×50 мм", 40, "шт"],
+    ["hardware", "Напрямні прихованого монтажу SC 450 мм 3D", 2, "компл."],
+  ],
+  wardrobe: [
+    ["boards", "ДСП Kronospan 3025 PR Дуб Сонома світлий, 18 мм", 3, "лист"],
+    ["boards", "ДВП (ЛХДФ) Kronospan 0110 PE Білий, 3 мм", 1, "лист"],
+    ["edging", "Крайка ПВХ 3025 Дуб Сонома світлий, 21×0,6 мм", 55, "пог. м"],
+    ["fasteners", "Конфірмат Muller 7×50 мм", 110, "шт"],
+    ["hardware", "Завіса Clip-On 105° накладна з дотягувачем 3D, Profi Line", 8, "шт"],
+  ],
+  kitchen: [
+    ["boards", "ДСП Kronospan 0110 SM Білий корпусний, 18 мм", 3, "лист"],
+    ["boards", "ДВП (ЛХДФ) Kronospan 0110 PE Білий, 3 мм", 1, "лист"],
+    ["edging", "Крайка ПВХ 0110 SM Білий, 21×0,8 мм", 65, "пог. м"],
+    ["facade", "МДФ Kronospan Feelness 8685 Білий сніг Ultra Matt, 18 мм", 7, "м²"],
+    ["countertop", "Стільниця Kronospan K201 RS Бетон темно-сірий, 600×38 мм", 3, "пог. м"],
+    ["fasteners", "Конфірмат Muller 7×50 мм", 180, "шт"],
+    ["hardware", "Напрямні прихованого монтажу SC 500 мм 3D, Profi Line", 6, "компл."],
+    ["hardware", "Завіса Clip-On 105° накладна з дотягувачем 3D, Profi Line", 12, "шт"],
+  ],
+};
+
+export const MOCK_INTAKE: {
+  id: string; number: string; manager: 1 | 2; client: string; phone: string; product: string;
+  template: keyof typeof ESTIMATE_TEMPLATES; price: number; accepted: number; advance: number; floor: number | null;
+}[] = [
+  { id: "q01", number: "246", manager: 1, client: "Савченко", phone: "067 000 00 06", product: "Кухня пряма", template: "kitchen", price: 98000, accepted: 26, advance: 0, floor: 4 },
+  { id: "q02", number: "247", manager: 1, client: "Кравець", phone: "050 000 00 07", product: "Шафа-купе в передпокій", template: "wardrobe", price: 36000, accepted: 19, advance: 0, floor: 7 },
+  { id: "q03", number: "248", manager: 1, client: "Мельник", phone: "063 000 00 08", product: "Тумба у ванну", template: "small", price: 11500, accepted: 12, advance: 4000, floor: 2 },
+  { id: "q04", number: "249", manager: 1, client: "Шевчук", phone: "097 000 00 09", product: "Гардероб у спальню", template: "wardrobe", price: 38500, accepted: 9, advance: 0, floor: null },
+  { id: "q05", number: "250", manager: 1, client: "Поліщук", phone: "066 000 00 10", product: "Кухня кутова", template: "kitchen", price: 104000, accepted: 5, advance: 0, floor: 12 },
+  { id: "q06", number: "251", manager: 1, client: "Руденко", phone: "068 000 00 11", product: "Комод у дитячу", template: "small", price: 12500, accepted: 2, advance: 0, floor: 3 },
+  { id: "q07", number: "252", manager: 1, client: "Гончар", phone: "073 000 00 12", product: "Стелаж у кабінет", template: "small", price: 10800, accepted: -2, advance: 0, floor: 1 },
+  { id: "q08", number: "253", manager: 2, client: "Лисенко", phone: "067 000 00 13", product: "Кухня з островом", template: "kitchen", price: 115000, accepted: 33, advance: 0, floor: 6 },
+  { id: "q09", number: "254", manager: 2, client: "Марченко", phone: "050 000 00 14", product: "Шафа в дитячу", template: "wardrobe", price: 34000, accepted: 24, advance: 0, floor: 8 },
+  { id: "q10", number: "255", manager: 2, client: "Остапенко", phone: "063 000 00 15", product: "Пенал у ванну", template: "small", price: 9800, accepted: 20, advance: 0, floor: 2 },
+  { id: "q11", number: "256", manager: 2, client: "Сидоренко", phone: "097 000 00 16", product: "Передпокій", template: "wardrobe", price: 37000, accepted: 16, advance: 10000, floor: 5 },
+  { id: "q12", number: "257", manager: 2, client: "Ткачук", phone: "066 000 00 17", product: "Кухня пряма", template: "kitchen", price: 99500, accepted: 13, advance: 0, floor: 9 },
+  { id: "q13", number: "258", manager: 2, client: "Гнатюк", phone: "068 000 00 18", product: "Тумба під ТВ", template: "small", price: 11000, accepted: 10, advance: 0, floor: null },
+  { id: "q14", number: "259", manager: 2, client: "Дорошенко", phone: "073 000 00 19", product: "Гардеробна", template: "wardrobe", price: 41000, accepted: 6, advance: 0, floor: 3 },
+  { id: "q15", number: "260", manager: 2, client: "Яковенко", phone: "067 000 00 20", product: "Шафа-купе", template: "wardrobe", price: 39000, accepted: 3, advance: 12000, floor: 16 },
+  { id: "q16", number: "261", manager: 2, client: "Олійник", phone: "050 000 00 21", product: "Комод", template: "small", price: 12000, accepted: 1, advance: 0, floor: 1 },
+  { id: "q17", number: "262", manager: 2, client: "Павленко", phone: "063 000 00 22", product: "Кухня кутова", template: "kitchen", price: 107000, accepted: -3, advance: 0, floor: 4 },
+];
+
+/** Замовники прорахованих замовлень (вигадані). */
+const INTAKE_CLIENTS: Client[] = MOCK_INTAKE.map((q, index) => ({
+  id: `c-${q.id}`,
+  name: q.client,
+  phone: q.phone,
+  address: `м. Київ, вул. Прикладна, ${20 + index}, кв. ${10 + index * 3}`,
+}));
+
+/** Усі замовники прикладу. */
+export const MOCK_CLIENTS: Client[] = [...BASE_CLIENTS, ...INTAKE_CLIENTS];
+
+/** Проекти прорахованих замовлень; менеджера підставляє сховище за полем manager. */
+function intakeProjects(week: string): Project[] {
+  const day = (offset: number) => addDays(week, offset);
+  return MOCK_INTAKE.map((q) => ({
+    id: q.id,
+    number: q.number,
+    clientId: `c-${q.id}`,
+    client: q.client,
+    product: q.product,
+    acceptedOn: day(-q.accepted),
+    dueOn: day(-q.accepted + 45),
+    payments: q.advance ? [{ id: `${q.id}-0`, date: day(Math.min(-q.accepted + 3, 0)), amount: q.advance }] : [],
+    spec: [],
+    estimate: rows(`${q.id}-e`, ESTIMATE_TEMPLATES[q.template]),
+    extras: [],
+    clientPrice: q.price,
+    managerId: "",
+    adminEditedOn: null,
+    changes: [],
+    details: { ...EMPTY_DETAILS },
+    floor: q.floor,
+    refusal: null,
+    frozen: null,
+  }));
+}
 
 /** Кошторис зі специфікації прикладу: менеджер заклав із запасом (округлено вгору); листи ДСП і ДВП конструктор уже рахує цілими. */
 const roughly = (id: string, spec: SpecRow[]): SpecRow[] =>
@@ -277,7 +368,7 @@ function withEstimate(project: ProjectDraft): Project {
     ...project,
     estimate: listed ? rows(`${project.id}-e`, listed) : roughly(project.id, project.spec),
     extras: (MOCK_EXTRAS[project.id] ?? []).map(([name, amount], index) => ({ id: `${project.id}-x${index}`, name, amount })),
-    clientId: MOCK_CLIENTS.find((client) => client.name === project.client)?.id ?? "",
+    clientId: BASE_CLIENTS.find((client) => client.name === project.client)?.id ?? "",
     clientPrice: MOCK_CLIENT_PRICES[project.id] ?? null,
     managerId: "", // підставляється разом із людьми прикладу
     adminEditedOn: null,
@@ -292,9 +383,12 @@ function withEstimate(project: ProjectDraft): Project {
 /** Приклади. Дати рахуються від понеділка поточного тижня. */
 export function mockProjects(week: string): Project[] {
   // Зміни прикладу — наступного дня після авансу.
-  return mockDrafts(week)
-    .map(withEstimate)
-    .map((project) => ({ ...project, changes: project.changes.map((change) => ({ ...change, date: addDays(week, 1) })) }));
+  return [
+    ...mockDrafts(week)
+      .map(withEstimate)
+      .map((project) => ({ ...project, changes: project.changes.map((change) => ({ ...change, date: addDays(week, 1) })) })),
+    ...intakeProjects(week),
+  ];
 }
 
 function mockDrafts(week: string): ProjectDraft[] {

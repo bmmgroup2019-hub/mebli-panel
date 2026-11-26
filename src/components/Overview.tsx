@@ -8,6 +8,7 @@ import { NewProjectButton } from "./NewProjectButton";
 import {
   assigneeOf,
   isFinished,
+  isIntake,
   issueTypeName,
   stageStatus,
   useWeekData,
@@ -39,7 +40,12 @@ const stageLabel = (stages: Stage[], id: string) => stages.find((s) => s.id === 
 export function Overview({ data, week }: { data: WeekData; week: string }) {
   const [filterKey, setFilterKey] = useState<string | null>(null);
   const today = todayIso();
-  const open = data.items.filter((item) => item.doneWeek === null && item.week <= week);
+  // Виробництво окремо від прийому: прорахованих замовлень на прийомі буває багато, вони не робота цеху.
+  const all = data.items.filter((item) => item.doneWeek === null && item.week <= week);
+  const open = all.filter((item) => !isIntake(data, item.stage));
+  const intake = all.filter((item) => isIntake(data, item.stage));
+  const intakeOrders = new Set(intake.map((item) => item.order));
+  const intakePaid = data.projects.filter((p) => intakeOrders.has(projectLabel(p)) && p.payments.length > 0).length;
   const problems = data.issues.filter((issue) => issue.order && !issue.resolved);
   const hasNobody = (item: WorkItem) =>
     data.people.some((p) => p.stages.includes(item.stage)) && !assigneeOf(item, data.people);
@@ -66,7 +72,7 @@ export function Overview({ data, week }: { data: WeekData; week: string }) {
 
   const waiting = data.projects.filter((project) => {
     const label = projectLabel(project);
-    return !project.refusal && !rows.some((row) => row.order === label) && !isFinished(data, label);
+    return !project.refusal && !rows.some((row) => row.order === label) && !intakeOrders.has(label) && !isFinished(data, label);
   });
   const unassigned = open.filter(hasNobody);
   const lastStage = data.stages.at(-1)?.id;
@@ -100,8 +106,9 @@ export function Overview({ data, week }: { data: WeekData; week: string }) {
         <NewProjectButton />
       </header>
 
-      <div role="group" aria-label="Стан виробництва" className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3 xl:grid-cols-6">
+      <div role="group" aria-label="Стан виробництва" className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3 xl:grid-cols-7">
         <Stat label="У роботі" value={rows.length} pressed={!active} onClick={() => setFilterKey(null)} />
+        <Stat label="На прийомі" value={intake.length} note={`з авансом ${intakePaid}`} href="/intake" />
         <Stat label="Проблеми" value={problems.length} warn pressed={filterKey === "problems"} onClick={toggle("problems")} />
         <Stat label="Прострочено" value={rows.filter((row) => row.overdue).length} warn pressed={filterKey === "overdue"} onClick={toggle("overdue")} />
         <Stat label="Не призначено" value={unassigned.length} warn pressed={filterKey === "unassigned"} onClick={toggle("unassigned")} />
@@ -159,8 +166,8 @@ export function Overview({ data, week }: { data: WeekData; week: string }) {
         </section>
 
         <div className="grid gap-4">
-          <StageLoad stages={data.stages} open={open} week={week} />
-          <People data={data} open={open} />
+          <StageLoad stages={data.stages.filter((stage) => !isIntake(data, stage.id))} open={open} week={week} />
+          <People data={data} open={open} intake={intake} />
         </div>
       </div>
     </div>
@@ -174,6 +181,8 @@ function Stat({
   good,
   pressed,
   onClick,
+  note,
+  href,
 }: {
   label: string;
   value: number;
@@ -181,6 +190,8 @@ function Stat({
   good?: boolean;
   pressed?: boolean;
   onClick?: () => void;
+  note?: string;
+  href?: string;
 }) {
   const alert = warn && value > 0;
   // Тривожна плитка — з червоною рамкою й ледь червоним фоном.
@@ -195,9 +206,11 @@ function Stat({
       <span className={`mt-2 block text-3xl font-semibold leading-none tabular-nums ${good && value > 0 ? "text-success" : alert ? "text-critical" : ""}`}>
         {value}
       </span>
+      {note && <span className="mt-1 block text-xs text-ink-2">{note}</span>}
     </>
   );
   const box = `rounded-lg border p-3 sm:p-4 ${tone}`;
+  if (href) return <Link href={href} className={`${box} hover:border-ink-2/40`}>{body}</Link>;
   if (!onClick) return <div className={box}>{body}</div>;
   return (
     <button
@@ -304,7 +317,7 @@ function StageLoad({ stages, open, week }: { stages: Stage[]; open: WorkItem[]; 
   );
 }
 
-function People({ data, open }: { data: WeekData; open: WorkItem[] }) {
+function People({ data, open, intake }: { data: WeekData; open: WorkItem[]; intake: WorkItem[] }) {
   const people = data.people.filter((person) => person.stages.length > 0);
   if (people.length === 0) return null;
 
@@ -314,6 +327,8 @@ function People({ data, open }: { data: WeekData; open: WorkItem[] }) {
       <ul className="grid gap-2.5 text-sm">
         {people.map((person) => {
           const own = open.filter((item) => assigneeOf(item, data.people) === person.id);
+          // Менеджеру — скільки на прийомі, а не довгий список номерів.
+          const onIntake = intake.filter((item) => assigneeOf(item, data.people) === person.id).length;
           const numbers = [...new Set(own.map((item) => item.order.split(" · ")[0]))];
           const initials = person.name
             .split(/\s+/)
@@ -327,7 +342,9 @@ function People({ data, open }: { data: WeekData; open: WorkItem[] }) {
                 {initials}
               </span>
               <span className="min-w-0 flex-1 break-words">{person.name}</span>
-              {numbers.length > 0 ? (
+              {onIntake > 0 ? (
+                <Link href="/intake" className="flex-none text-right text-ink-2 hover:text-ink">на прийомі {onIntake}</Link>
+              ) : numbers.length > 0 ? (
                 <span className="flex-none text-right text-ink-2 tabular-nums">{numbers.join(", ")}</span>
               ) : (
                 <span className="flex-none rounded-full bg-success/15 px-2 py-0.5 text-xs text-success">Вільний</span>
