@@ -598,13 +598,16 @@ export function updatePerson(id: string, fields: Partial<Omit<Person, "id">>) {
 }
 
 /** Замовлення людини повертаються в «Не призначено». */
+/** false, якщо в людини є виплати: їхня історія не має зникнути (у базі так само заборонено). */
 export function removePerson(id: string) {
   const current = read();
+  if (current.payouts.some((p) => p.personId === id)) return false;
   write({
     ...current,
     people: current.people.filter((p) => p.id !== id),
     items: current.items.map((i) => (i.assigneeId === id ? { ...i, assigneeId: null } : i)),
   });
+  return true;
 }
 
 const nextStageOf = (stage: StageId) => {

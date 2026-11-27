@@ -196,7 +196,13 @@ function PersonRow({ person, active }: { person: Person; active: number }) {
           <StageChecks checked={person.stages} onToggle={toggleStage} />
           <div className="flex items-end">
             {!isMe && (
-              <button type="button" className={`${button} w-full`} onClick={() => removePerson(person.id)}>Прибрати</button>
+              <button
+                type="button"
+                className={`${button} w-full`}
+                onClick={() => setError(removePerson(person.id) ? "" : "У людини є виплати зарплати: прибрати не можна, щоб не зникла їхня історія.")}
+              >
+                Прибрати
+              </button>
             )}
           </div>
           {error && <p role="alert" className="text-sm text-critical sm:col-span-4">{error}</p>}

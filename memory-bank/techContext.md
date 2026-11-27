@@ -2,7 +2,7 @@
 
 ## Стек
 - Next.js 16 (App Router, TypeScript, `src/`), React 19, Tailwind 4. Ця версія Next.js відрізняється від старіших: перед кодом дивись `node_modules/next/dist/docs/`.
-- Пакети Supabase встановлено, у сайті поки не використовуються (PGlite прибрано 2026-11-14).
+- Пакети Supabase встановлено, у сайті поки не використовуються (PGlite прибрано 2026-11-14; для перевірки схеми його ставлять у тимчасову папку, не в проект).
 
 ## Запуск
 `npm.cmd run dev` → http://localhost:3000. У застосунку Claude: конфігурація `panel` у `.claude/launch.json`. Якщо сервер уже запущено з іншої сесії (друга копія падає з «Another next dev server is already running»), відкривати `preview_start` з `url` http://localhost:3000.
@@ -48,6 +48,11 @@
 - Node.js фактично поставлено 2026-11-11 (до того його не було); після зміни пакетів у `package.json` — `npm.cmd ci`. Вхід у GitHub (Git Credential Manager) тут збережено 2026-11-11.
 - Python тут не встановлено (лише заглушка Microsoft Store), тому пошуковий скрипт скіла ui-ux-pro-max на цьому ПК не працює: читати CSV напряму або поставити Python 3.12, як на першому ПК.
 
+## Supabase (з 2026-11-27)
+- Тестовий проект «mebli-panel-test» (id `ldpvkohryplutuenirhe`, Лондон, безкоштовний): схему виконано, даних немає. Подробиці — `activeContext.md`.
+- У застосунку Claude підключено конектор Supabase (його інструменти `mcp__…__execute_sql`, `apply_migration`, `list_tables`, `get_advisors`): міграції й перевірки бази роблю сам. Працювати лише з цим проектом; створювати, зупиняти, видаляти проекти й платні дії — тільки з дозволу користувача.
+- Сайт до бази ще не підключено: сервер, вхід і переведення сховища — наступний крок. Ключі сайту — у `.env.local` (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`), вписує користувач.
+
 ## Не налаштовано
-Проект Supabase, сервіс Render.
+Сервіс Render.
 - 2026-11-14 користувач попросив розмістити прототип на безкоштовному Render (Web Service з GitHub `main`): Build `npm ci && npm run build`, Start `npm run start` (Next сам бере `PORT`). `npm run build` локально проходить. Дані поки в localStorage кожного браузера — онлайн це лише показ, спільних даних немає до бази. Безкоштовний Render засинає після ~15 хв без відвідувань, перше відкриття ~1 хв.
