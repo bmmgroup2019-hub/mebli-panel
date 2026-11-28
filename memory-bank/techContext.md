@@ -18,7 +18,9 @@
 ## Будова коду (з 2026-11-26)
 - `src/lib/model.ts` — типи даних і довідкові константи (`projectLabel`, `DETAIL_FIELDS`); без сховища й без вигаданих даних.
 - `src/lib/rules.ts` — чисті правила: статуси етапів, хто що бачить і змінює (`projectAccess`, `specAccess`, `canRefuse`, `blockedReason`…). Згодом спільні для браузера й сервера.
-- `src/lib/week-store.ts` — сховище (localStorage), дії, що змінюють дані, і хуки (`useWeekData`, `useCurrentUser`…). Із базою переробляти саме його.
+- `src/lib/actions.ts` — дії, що змінюють дані (виконуються і в браузері, і на сервері); `src/lib/permissions.ts` — хто може виконати кожну дію. Нова дія: `action("назва", …)` і правило в `GUARDS`, інакше сервер її відхилить.
+- `src/lib/week-store.ts` — дані в браузері з `/api/data`, відправлення дій на `/api/action`, хуки (`useWeekData`, `useCurrentUser`…), вхід і вихід.
+- Сервер: `src/lib/server/` (`db.ts` — база, `session.ts` — cookie входу, `perform.ts` — виконання дії), маршрути `src/app/api/` (data, action, login, logout).
 - `src/lib/seed.ts` — заповнення прикладами; `src/lib/mock-projects.ts` — лише вигадані дані.
 - `src/lib/prices.ts` (фіксація цін), `salary.ts` (вартість і зарплата), `dates.ts` (`formatDate` «ДД.ММ.РРРР», `formatDayMonth` «ДД.ММ»), `materials.ts` (`money`, `wholeMoney`, `amount`, `parseNumber`), `util.ts` (`newId`, `sameName`), `phone.ts`.
 - `src/components/ui.tsx` — спільні стилі (`field`, `button`, `primaryButton`) і вікно `Modal`; нові поля, кнопки й вікна брати звідти, не копіювати класи.

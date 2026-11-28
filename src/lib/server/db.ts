@@ -31,8 +31,11 @@ export async function loadData(): Promise<{ version: number; data: WeekData }> {
   return { version: Number(data.version), data: fromDb(data) };
 }
 
-/** Записує зміни однією транзакцією. Паролі — у Supabase Auth, після запису людей. Повертає нову версію. */
-export async function saveChanges(changes: DbChange[], passwords: Record<string, string>) {
+/**
+ * Записує зміни однією транзакцією, якщо в базі досі версія expected. Паролі — у Supabase Auth, після запису людей.
+ * Повертає нову версію або null, якщо базу тим часом змінив хтось інший (тоді зміни не записано).
+ */
+export async function saveChanges(changes: DbChange[], passwords: Record<string, string>, expected: number) {
   for (const change of changes) {
     if (!TABLES.includes(change.table)) throw new Error(`Невідома таблиця: ${change.table}`);
   }
@@ -40,16 +43,10 @@ export async function saveChanges(changes: DbChange[], passwords: Record<string,
   const removedPeople = changes.find((c) => c.table === "people")?.delete ?? [];
   const removedAuth = removedPeople.length ? await authIdsOf(removedPeople) : [];
 
-  let version: number | null = null;
-  // Поки що без порівняння версій: кожен рядок записується як є (пізніше — перевірка прав і конфліктів на сервері).
-  for (let attempt = 0; attempt < 5 && version === null; attempt++) {
-    const current = await db().from("app_version").select("version").single();
-    if (current.error) throw new Error(`app_version: ${current.error.message}`);
-    const { data, error } = await db().rpc("apply_changes", { expected: current.data.version, changes });
-    if (error) throw new Error(`apply_changes: ${error.message}`);
-    version = data === null ? null : Number(data);
-  }
-  if (version === null) throw new Error("Базу саме змінюють інші: спробуйте ще раз.");
+  const { data, error } = await db().rpc("apply_changes", { expected, changes });
+  if (error) throw new Error(`apply_changes: ${error.message}`);
+  if (data === null) return null;
+  const version = Number(data);
 
   for (const id of removedAuth) await db().auth.admin.deleteUser(id);
   for (const [personId, password] of Object.entries(passwords)) await setPassword(personId, password);
