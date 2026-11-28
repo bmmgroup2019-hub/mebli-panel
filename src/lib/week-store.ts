@@ -77,6 +77,8 @@ setActionSink((name, args, ids, changed) => {
       }
       // Остаточний стан — від сервера (з чужими змінами), якщо поки чекали, тут не зробили нових дій.
       if (result.data && pending === 1) data = { ...(result.data as WeekData), sessionId: result.me };
+      // Людини вже немає (наприклад, після «Повернути приклади»): вхід заново.
+      if (response.ok && !result.me) data = { ...emptyData(), sessionId: null };
     } catch (error) {
       problem = `Зміну не збережено в базі: ${message(error)}. Перезавантажте сторінку.`;
     } finally {
