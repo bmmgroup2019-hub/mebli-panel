@@ -70,9 +70,10 @@ function LoginForm() {
           {busy ? "Перевіряю…" : "Увійти"}
         </button>
       </form>
-      <p className="text-sm text-ink-2">
+      {/* Підказка з паролями прикладів — лише на цьому ПК: онлайн за нею зайшов би будь-хто. */}
+      {process.env.NODE_ENV !== "production" && <p className="text-sm text-ink-2">
         Прототип, дані вигадані. Адміністратор: admin / admin. Менеджер: manager / 2222. Менеджер 2: manager2 / 6666. Конструктор: konstruktor / 3333. Оператор ЧПУ: chpu / 4444. Крайка: kraika / 5555. Складальник: zbirka1 / 1111. Монтажник: montazh1 / 7777. Закупівельник: zakupka / 8888.
-      </p>
+      </p>}
     </main>
   );
 }

@@ -56,6 +56,11 @@
 - З 2026-11-28 сайт працює з базою (крок 1, подробиці — `activeContext.md`): `src/lib/db-map.ts`, `src/lib/server/db.ts`, `src/app/api/data`, `src/app/api/login`. Ключі сайту — у `.env.local` (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`); секретний вписує користувач, не в чат. Без ключів сайт показує червону смугу «Немає зв'язку з базою».
 - Supabase забороняє `update`/`delete` без `where` у функціях, викликаних через API.
 
+## Render (крок 5 підключення бази, підготовлено 2026-11-28)
+- Код готовий: `engines.node >=22` у `package.json`; підказка з паролями прикладів на формі входу — лише не в production; cookie входу в production — `secure` (https). `npm run build` і `next start` локально перевірено: вхід тримається після перезавантаження.
+- Налаштування сервісу (вписує користувач у Render): Web Service з GitHub `bmmgroup2019-hub/mebli-panel`, гілка `main`, регіон Frankfurt, Build `npm ci && npm run build`, Start `npm run start`, Free. Змінні середовища: `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY` (з `.env.local`) і `TZ=Europe/Kyiv`. Секретні ключі вписує сам користувач.
+- Чи сервіс уже створено на Render — не відомо (2026-11-14 лише просили). Адресу сайту записати сюди, коли буде.
+
 ## Не налаштовано
-Сервіс Render.
+Сервіс Render (див. вище).
 - 2026-11-14 користувач попросив розмістити прототип на безкоштовному Render (Web Service з GitHub `main`): Build `npm ci && npm run build`, Start `npm run start` (Next сам бере `PORT`). `npm run build` локально проходить. Дані поки в localStorage кожного браузера — онлайн це лише показ, спільних даних немає до бази. Безкоштовний Render засинає після ~15 хв без відвідувань, перше відкриття ~1 хв.
