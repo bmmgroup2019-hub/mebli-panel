@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { projectLabel, type Material, type Project, type PurchaseStatus, type SpecGroup, type SpecRow, type RowList } from "@/lib/model";
 import { findMaterial, money } from "@/lib/materials";
 import { frozenNote, pricedData } from "@/lib/prices";
@@ -12,6 +12,17 @@ const columns = "grid grid-cols-[minmax(0,1fr)_96px_auto] gap-1.5 sm:grid-cols-[
 const nameCell = "col-span-3 sm:col-span-1";
 // На телефоні примітка — окремим рядком під кількістю, на комп'ютері — стовпчиком перед «×».
 const noteCell = "order-last col-span-3 sm:order-none sm:col-span-1";
+
+// Кошторис — таблицею: назва, ціна за одиницю, кількість (з одиницею), сума, примітка, «×».
+// Широкий екран — усе в один рядок. Середній — назва на всю ширину, під нею решта колонок.
+// Телефон — назва, під нею ціна, кількість і сума, примітка ще нижче.
+const estimateColumns =
+  "grid grid-cols-[minmax(0,1fr)_56px_auto_minmax(0,1fr)_20px] items-center gap-1.5 " +
+  "sm:grid-cols-[104px_64px_48px_112px_minmax(0,1fr)_28px] xl:grid-cols-[minmax(0,1fr)_104px_64px_48px_112px_minmax(0,0.3fr)_28px]";
+const estimateName = "col-span-5 sm:col-span-6 xl:col-span-1";
+const estimateNote = "order-last col-span-5 sm:order-none sm:col-span-1";
+const estimateWide = "col-span-5 sm:col-span-6 xl:col-span-7";
+const moneyCell = "whitespace-nowrap text-right tabular-nums";
 
 /** Текст із кількості: порожнє поле або не число дає null. */
 function parseQuantity(value: string) {
@@ -125,32 +136,63 @@ function GroupBlock({
       </h3>
 
       {rows.length > 0 && (
-        <table className={`w-full rounded-lg border border-line bg-surface text-sm ${canEdit ? "hidden print:table" : ""}`}>
-          <thead className="sr-only">
-            <tr>
-              <th>Найменування</th>
-              <th>Кількість</th>
-              <th>Примітка</th>
-              {purchase && <th>Закупка</th>}
-            </tr>
-          </thead>
+        <table className={`w-full rounded-lg border border-line bg-surface text-sm ${list === "estimate" ? "table-fixed" : ""} ${canEdit ? "hidden print:table" : ""}`}>
+          {list === "estimate" ? (
+            <thead className="text-xs text-ink-2">
+              <tr>
+                {/* Однакові ширини колонок, щоб групи стояли рівно одна під одною. На телефоні примітка — під назвою. */}
+                <th className="hidden p-2 text-left font-normal sm:table-cell">Найменування</th>
+                <th className="w-24 p-2 text-right font-normal sm:w-28">Ціна за од.</th>
+                <th className="w-20 p-2 text-right font-normal sm:w-24">Кількість</th>
+                <th className="w-24 p-2 text-right font-normal sm:w-32">Сума</th>
+                <th className="hidden w-1/5 p-2 text-left font-normal sm:table-cell">Примітка</th>
+              </tr>
+            </thead>
+          ) : (
+            <thead className="sr-only">
+              <tr>
+                <th>Найменування</th>
+                <th>Кількість</th>
+                <th>Примітка</th>
+                {purchase && <th>Закупка</th>}
+              </tr>
+            </thead>
+          )}
           <tbody>
             {rows.map((row) => (
-              <tr key={row.id} className="border-t border-line first:border-t-0">
-                <td className="p-2">
-                  {row.name}
-                  {list === "estimate" && <RowCost row={row} material={findMaterial(materials, row.name)} />}
-                </td>
+              <Fragment key={row.id}>
+              {list === "estimate" && (
+                // На телефоні назва й примітка — окремим рядком над числами.
+                <tr className="border-t border-line sm:hidden">
+                  <td colSpan={3} className="px-2 pt-2">
+                    {row.name}
+                    {row.note && <span className="block text-xs text-ink-2">{row.note}</span>}
+                  </td>
+                </tr>
+              )}
+              <tr className={list === "estimate" ? "sm:border-t sm:border-line" : "border-t border-line first:border-t-0"}>
+                <td className={`p-2 align-top ${list === "estimate" ? "hidden sm:table-cell" : ""}`}>{row.name}</td>
+                {list === "estimate" && (
+                  <td className={`whitespace-nowrap p-2 align-top text-ink-2 ${moneyCell}`}>
+                    {unitPrice(findMaterial(materials, row.name))}
+                  </td>
+                )}
                 <td className="whitespace-nowrap p-2 text-right align-top tabular-nums">
                   {row.quantity === null ? "" : row.quantity.toLocaleString("uk-UA")} {findMaterial(materials, row.name)?.unit ?? row.unit}
                 </td>
-                <td className="p-2 align-top text-xs text-ink-2">{row.note}</td>
+                {list === "estimate" && (
+                  <td className={`whitespace-nowrap p-2 align-top font-medium ${moneyCell}`}>
+                    {rowSum(row, findMaterial(materials, row.name))}
+                  </td>
+                )}
+                <td className={`p-2 align-top text-xs text-ink-2 ${list === "estimate" ? "hidden sm:table-cell" : ""}`}>{row.note}</td>
                 {purchase && (
                   <td className="w-px whitespace-nowrap p-2 text-right print:hidden">
                     <Purchase projectId={project.id} row={row} canMark={purchase.canMark} />
                   </td>
                 )}
               </tr>
+              </Fragment>
             ))}
           </tbody>
         </table>
@@ -162,6 +204,7 @@ function GroupBlock({
           <datalist id={listId}>
             {materials.map((m) => <option key={`${m.id}|${m.name}`} value={m.name} label={m.maker || undefined} />)}
           </datalist>
+          {list === "estimate" && <EstimateHeader />}
           {rows.map((row) => (
             <EditRow
               key={row.id}
@@ -199,9 +242,10 @@ function AddRow({
 }) {
   const [typed, setTyped] = useState("");
   const material = findMaterial(materials, typed);
+  const estimate = list === "estimate";
   return (
     <form
-      className={columns}
+      className={estimate ? `${estimateColumns} border-t border-line pt-1.5` : columns}
       onSubmit={(event) => {
         event.preventDefault();
         const form = event.currentTarget;
@@ -227,30 +271,46 @@ function AddRow({
         onChange={(event) => setTyped(event.target.value)}
         aria-label={`Новий матеріал: ${group.name}`}
         placeholder={materials.length ? "Почніть вводити назву" : "Новий матеріал"}
-        className={`${input} ${nameCell}`}
+        className={`${input} ${estimate ? estimateName : nameCell}`}
       />
-      <input name="quantity" inputMode="decimal" aria-label="Кількість" placeholder="К-сть" className={input} />
+      {estimate && <span className={`text-xs text-ink-2 sm:text-sm ${moneyCell}`}>{material ? unitPrice(material) : ""}</span>}
+      <input name="quantity" inputMode="decimal" aria-label="Кількість" placeholder="К-сть" className={`${input} ${estimate ? "text-right" : ""}`} />
       {material ? (
-        <span className="self-center px-2 text-sm text-ink-2">{material.unit}</span>
+        <span className={`text-sm text-ink-2 ${estimate ? "" : "self-center px-2"}`}>{material.unit}</span>
       ) : (
         <select name="unit" aria-label="Одиниця" className={input}>
           {units.map((unit) => <option key={unit}>{unit}</option>)}
         </select>
       )}
-      <input name="note" aria-label={`Примітка до нового матеріалу: ${group.name}`} placeholder="Примітка" className={`${input} ${noteCell}`} />
-      <button type="submit" className={button}>Додати</button>
+      {estimate && <span />}
+      <input name="note" aria-label={`Примітка до нового матеріалу: ${group.name}`} placeholder="Примітка" className={`${input} ${estimate ? estimateNote : noteCell}`} />
+      {estimate ? (
+        <button type="submit" aria-label={`Додати матеріал: ${group.name}`} className="text-lg leading-none text-accent hover:text-ink">+</button>
+      ) : (
+        <button type="submit" className={button}>Додати</button>
+      )}
     </form>
   );
 }
 
-/** Вартість рядка кошторису за ціною довідника: ціна за одиницю й сума. */
-function RowCost({ row, material }: { row: SpecRow; material: Material | undefined }) {
-  if (!material || material.price === null) return null;
+/** Ціна за одиницю з довідника або «—». */
+const unitPrice = (material: Material | undefined) => (material?.price == null ? "—" : money(material.price));
+
+/** Сума рядка кошторису: кількість × ціна довідника, або «—». */
+const rowSum = (row: SpecRow, material: Material | undefined) =>
+  material?.price == null || row.quantity === null ? "—" : money(row.quantity * material.price);
+
+/** Підписи колонок кошторису над рядками, які можна змінювати. */
+function EstimateHeader() {
   return (
-    <span className="block text-xs text-ink-2 tabular-nums">
-      {money(material.price)} за {material.unit}
-      {row.quantity !== null && <> · <span className="text-ink">{money(row.quantity * material.price)}</span></>}
-    </span>
+    <div className={`${estimateColumns} text-xs text-ink-2`} aria-hidden="true">
+      <span className="hidden xl:block">Найменування</span>
+      <span className="text-right">Ціна за од.</span>
+      <span className="col-span-2 text-center">Кількість</span>
+      <span className="text-right">Сума</span>
+      <span className="hidden sm:block">Примітка</span>
+      <span />
+    </div>
   );
 }
 
@@ -273,7 +333,7 @@ function EditRow({
 }) {
   const material = findMaterial(materials, row.name);
   const known = Boolean(material);
-  const cost = list === "estimate" && material?.price != null;
+  if (list === "estimate") return <EstimateRow projectId={projectId} row={row} units={units} materials={materials} listId={listId} />;
   return (
     <div className={columns}>
       <input
@@ -332,15 +392,93 @@ function EditRow({
       >
         ×
       </button>
-      {(!known || cost || (purchase && (purchase.canMark || row.purchase))) && (
+      {(!known || (purchase && (purchase.canMark || row.purchase))) && (
         <p className="order-last col-span-3 -mt-1 flex flex-wrap items-center justify-between gap-2 text-xs text-ink-2 sm:col-span-5">
-          {cost ? (
-            <RowCost row={row} material={material} />
-          ) : (
-            <span>{known ? "" : list === "estimate" ? "Не з довідника: без ціни, у вартість не входить" : "Не з довідника"}</span>
-          )}
+          <span>{known ? "" : "Не з довідника"}</span>
           {purchase && <Purchase projectId={projectId} row={row} canMark={purchase.canMark} />}
         </p>
+      )}
+    </div>
+  );
+}
+
+/** Рядок кошторису, який можна змінювати: колонки, як у таблиці. */
+function EstimateRow({
+  projectId,
+  row,
+  units,
+  materials,
+  listId,
+}: {
+  projectId: string;
+  row: SpecRow;
+  units: string[];
+  materials: Material[];
+  listId: string;
+}) {
+  const material = findMaterial(materials, row.name);
+  return (
+    <div className={`${estimateColumns} border-t border-line pt-1.5`}>
+      <input
+        aria-label="Найменування"
+        list={listId}
+        autoComplete="off"
+        key={String(row.name)} defaultValue={row.name}
+        title={row.name}
+        className={`${input} ${estimateName}`}
+        onBlur={(event) => {
+          const typed = event.target.value.trim();
+          if (!typed) {
+            event.target.value = row.name;
+            return;
+          }
+          const found = findMaterial(materials, typed);
+          const name = found?.name ?? typed;
+          event.target.value = name;
+          if (name !== row.name) updateSpecRow(projectId, row.id, found ? { name, unit: found.unit } : { name }, "estimate");
+        }}
+      />
+      <span className={`text-xs text-ink-2 sm:text-sm ${moneyCell}`}>{unitPrice(material)}</span>
+      <input
+        aria-label={`Кількість: ${row.name}`}
+        inputMode="decimal"
+        key={String(row.quantity ?? "")} defaultValue={row.quantity ?? ""}
+        className={`${input} text-right`}
+        onBlur={(event) => updateSpecRow(projectId, row.id, { quantity: parseQuantity(event.target.value) }, "estimate")}
+      />
+      {material ? (
+        <span className="text-sm text-ink-2">{material.unit}</span>
+      ) : (
+        <select
+          aria-label={`Одиниця: ${row.name}`}
+          className={input}
+          value={row.unit}
+          onChange={(event) => updateSpecRow(projectId, row.id, { unit: event.target.value }, "estimate")}
+        >
+          {[...new Set([...units, row.unit])].map((unit) => <option key={unit}>{unit}</option>)}
+        </select>
+      )}
+      <span className={`text-sm font-medium ${moneyCell}`}>{rowSum(row, material)}</span>
+      <input
+        aria-label={`Примітка: ${row.name}`}
+        key={String(row.note ?? "")} defaultValue={row.note ?? ""}
+        placeholder="Примітка"
+        className={`${input} ${estimateNote}`}
+        onBlur={(event) => {
+          const note = event.target.value.trim();
+          if (note !== (row.note ?? "")) updateSpecRow(projectId, row.id, { note: note || undefined }, "estimate");
+        }}
+      />
+      <button
+        type="button"
+        aria-label={`Прибрати: ${row.name}`}
+        className="text-ink-2 hover:text-ink"
+        onClick={() => removeSpecRow(projectId, row.id, "estimate")}
+      >
+        ×
+      </button>
+      {!material && (
+        <p className={`order-last -mt-1 text-xs text-ink-2 ${estimateWide}`}>Не з довідника: без ціни, у вартість не входить</p>
       )}
     </div>
   );
