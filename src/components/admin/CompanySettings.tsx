@@ -94,7 +94,7 @@ export function CompanySettings() {
           <label key={key} className={`grid gap-0.5 text-xs text-ink-2 ${key === "address" || key === "extra" ? "sm:col-span-2" : ""}`}>
             {label}
             <input
-              defaultValue={data.company[key]}
+              key={String(data.company[key])} defaultValue={data.company[key]}
               placeholder={placeholder}
               className={input}
               onBlur={(event) => {
@@ -108,7 +108,7 @@ export function CompanySettings() {
           Умови підготовки до монтажу (друкуються в кожному бланку)
           <textarea
             rows={4}
-            defaultValue={data.company.installTerms}
+            key={String(data.company.installTerms)} defaultValue={data.company.installTerms}
             placeholder="Що замовник має зробити до монтажу: рівність стін, електрика, вода…"
             className={input}
             onBlur={(event) => {

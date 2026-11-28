@@ -28,7 +28,7 @@ export function StageSettings({ data }: { data: WeekData }) {
           <li key={stage.id} className="grid gap-2 p-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto_auto] sm:items-center">
             <input
               aria-label="Назва етапу"
-              defaultValue={stage.label}
+              key={String(stage.label)} defaultValue={stage.label}
               className={input}
               onBlur={(event) => {
                 const label = event.target.value.trim();
@@ -41,7 +41,7 @@ export function StageSettings({ data }: { data: WeekData }) {
             <input
               aria-label={`Пояснення: ${stage.label}`}
               placeholder="Пояснення, необов'язково"
-              defaultValue={stage.hint}
+              key={String(stage.hint)} defaultValue={stage.hint}
               className={input}
               onBlur={(event) => {
                 const hint = event.target.value.trim();

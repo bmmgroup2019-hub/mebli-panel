@@ -25,7 +25,7 @@ export function RefusalReasons({ data }: { data: WeekData }) {
               <li key={reason.id} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 p-2">
                 <input
                   aria-label="Назва причини"
-                  defaultValue={reason.name}
+                  key={String(reason.name)} defaultValue={reason.name}
                   className={input}
                   onBlur={(event) => {
                     const name = event.target.value.trim();

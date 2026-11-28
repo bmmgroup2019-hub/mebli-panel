@@ -280,7 +280,7 @@ function EditRow({
         aria-label="Найменування"
         list={listId}
         autoComplete="off"
-        defaultValue={row.name}
+        key={String(row.name)} defaultValue={row.name}
         className={`${input} ${nameCell}`}
         onBlur={(event) => {
           const typed = event.target.value.trim();
@@ -297,7 +297,7 @@ function EditRow({
       <input
         aria-label={`Кількість: ${row.name}`}
         inputMode="decimal"
-        defaultValue={row.quantity ?? ""}
+        key={String(row.quantity ?? "")} defaultValue={row.quantity ?? ""}
         className={input}
         onBlur={(event) => updateSpecRow(projectId, row.id, { quantity: parseQuantity(event.target.value) }, list)}
       />
@@ -316,7 +316,7 @@ function EditRow({
       )}
       <input
         aria-label={`Примітка: ${row.name}`}
-        defaultValue={row.note ?? ""}
+        key={String(row.note ?? "")} defaultValue={row.note ?? ""}
         placeholder="Примітка"
         className={`${input} ${noteCell}`}
         onBlur={(event) => {

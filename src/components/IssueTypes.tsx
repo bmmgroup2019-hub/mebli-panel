@@ -25,7 +25,7 @@ export function IssueTypes({ data }: { data: WeekData }) {
               <li key={type.id} className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 p-2">
                 <input
                   aria-label="Назва типу"
-                  defaultValue={type.name}
+                  key={String(type.name)} defaultValue={type.name}
                   className={input}
                   onBlur={(event) => {
                     const name = event.target.value.trim();

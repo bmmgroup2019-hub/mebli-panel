@@ -121,7 +121,7 @@ function NameRow({
     <li className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-2 p-2">
       <input
         aria-label={label}
-        defaultValue={name}
+        key={String(name)} defaultValue={name}
         className={input}
         onBlur={(event) => {
           const next = event.target.value.trim();
@@ -272,7 +272,7 @@ function Works({ data, onError }: Props) {
               <li key={work.id} className={`${row} p-2`}>
                 <input
                   aria-label="Назва роботи"
-                  defaultValue={work.name}
+                  key={String(work.name)} defaultValue={work.name}
                   className={`${input} col-span-2 sm:col-span-1`}
                   onBlur={(event) => {
                     const name = event.target.value.trim();
@@ -293,7 +293,7 @@ function Works({ data, onError }: Props) {
                 <input
                   aria-label={`Ціна, грн за ${work.unit}: ${work.name}`}
                   inputMode="decimal"
-                  defaultValue={shownNumber(work.price)}
+                  key={String(shownNumber(work.price))} defaultValue={shownNumber(work.price)}
                   placeholder={`грн / ${work.unit}`}
                   className={input}
                   onBlur={(event) => {

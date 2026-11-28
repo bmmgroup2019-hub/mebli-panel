@@ -175,10 +175,10 @@ function PersonRow({ person, active }: { person: Person; active: number }) {
       {open && (
         <div className="grid gap-2 border-t border-line pt-2 sm:grid-cols-4">
           <Field label="Ім'я">
-            <input defaultValue={person.name} className={input} onBlur={(e) => saveText("name", e.target)} />
+            <input key={String(person.name)} defaultValue={person.name} className={input} onBlur={(e) => saveText("name", e.target)} />
           </Field>
           <Field label="Логін">
-            <input defaultValue={person.login} autoComplete="off" className={input} onBlur={(e) => saveText("login", e.target)} />
+            <input key={String(person.login)} defaultValue={person.login} autoComplete="off" className={input} onBlur={(e) => saveText("login", e.target)} />
           </Field>
           {/* Пароль зберігає Supabase Auth і не показується: вписане тут стає новим паролем. */}
           <Field label="Новий пароль">

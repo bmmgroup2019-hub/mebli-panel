@@ -227,7 +227,7 @@ function MainFields({ project }: { project: Project }) {
           <span className="py-1.5 text-sm font-semibold text-ink tabular-nums">№{project.number}</span>
         </Field>
         <Field label="Виріб">
-          <input defaultValue={project.product} className={input} onBlur={(e) => saveProduct(e.target)} />
+          <input key={String(project.product)} defaultValue={project.product} className={input} onBlur={(e) => saveProduct(e.target)} />
         </Field>
         <Field label="Дата прийому">
           <input
