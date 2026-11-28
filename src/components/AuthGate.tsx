@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { signIn, useCurrentUser, useDataProblem, useWeekData } from "@/lib/week-store";
+import { signIn, useCurrentUser, useDataProblem, useSyncStatus, useWeekData } from "@/lib/week-store";
 import { LogoMark } from "./Logo";
 
 const field = "rounded-lg border border-line bg-surface px-3 py-2.5 text-sm placeholder:text-ink-2 focus:border-accent";
@@ -11,9 +11,16 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const data = useWeekData();
   const user = useCurrentUser();
   const problem = useDataProblem();
-  const banner = problem && (
+  const { offline, waiting } = useSyncStatus();
+  // Червона — помилка; жовта — немає зв'язку, зміни чекають тут і підуть самі.
+  const banner = problem ? (
     <p role="alert" className="sticky top-0 z-50 bg-critical px-4 py-2 text-center text-sm font-medium text-white">{problem}</p>
-  );
+  ) : offline ? (
+    <p role="status" className="sticky top-0 z-50 bg-warning px-4 py-2 text-center text-sm font-medium text-black">
+      Немає зв&apos;язку з сервером.{" "}
+      {waiting > 0 ? `Змін чекає відправлення: ${waiting} — підуть самі, щойно зв'язок повернеться. Не закривайте сторінку.` : "Дані можуть бути не найсвіжіші."}
+    </p>
+  ) : null;
   if (!data) return banner || <p className="py-16 text-center text-ink-2">Завантаження…</p>;
   return (
     <>

@@ -208,6 +208,14 @@ create table public.payouts (
   note text not null default ''
 );
 
+-- Виконані запити дій: якщо браузер через поганий зв'язок надішле ту саму дію ще раз, сервер її не повторить.
+-- Записується в тій самій транзакції, що й зміни дії; старі сервер прибирає.
+create table public.applied_actions (
+  id text primary key,
+  at timestamptz not null default now()
+);
+create index on public.applied_actions (at);
+
 -- Зв'язки, за якими база часто шукає
 create index on public.works (stage_id);
 create index on public.materials (group_id);
@@ -286,7 +294,7 @@ begin
     target := change ->> 'table';
     if target is null or target not in (
       'stages', 'issue_types', 'refusal_reasons', 'spec_groups', 'units', 'makers', 'works', 'materials', 'settings', 'people',
-      'clients', 'projects', 'payments', 'project_rows', 'extras', 'changes', 'items', 'issues', 'payouts'
+      'clients', 'projects', 'payments', 'project_rows', 'extras', 'changes', 'items', 'issues', 'payouts', 'applied_actions'
     ) then
       raise exception 'Невідома таблиця: %', target;
     end if;
@@ -321,7 +329,8 @@ declare
 begin
   for t in select tablename from pg_catalog.pg_tables where schemaname = 'public' and tablename in (
     'stages', 'issue_types', 'refusal_reasons', 'spec_groups', 'units', 'makers', 'works', 'materials', 'settings', 'people',
-    'clients', 'projects', 'payments', 'project_rows', 'extras', 'changes', 'items', 'issues', 'payouts', 'app_version'
+    'clients', 'projects', 'payments', 'project_rows', 'extras', 'changes', 'items', 'issues', 'payouts', 'app_version',
+    'applied_actions'
   ) loop
     execute format('alter table public.%I enable row level security', t);
     execute format('revoke all on public.%I from public, anon, authenticated', t);

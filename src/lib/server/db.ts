@@ -25,6 +25,33 @@ function db() {
 const authEmail = (personId: string) => `${personId.toLowerCase()}@people.mebli-panel.app`;
 const authPassword = (password: string) => `lm-pw:${password}`;
 
+/** Номер версії даних: зростає з кожною зміною. Браузери за ним бачать, що хтось щось змінив. */
+export async function currentVersion() {
+  const { data, error } = await db().from("app_version").select("version").single();
+  if (error) throw new Error(`app_version: ${error.message}`);
+  return Number(data.version);
+}
+
+/** Таблиця виконаних запитів дій (захист від повтору при поганому зв'язку). */
+export const APPLIED = "applied_actions";
+
+/** Запис про виконаний запит — іде в тій самій транзакції, що й зміни дії. */
+export const appliedChange = (requestId: string) =>
+  ({ table: APPLIED, upsert: [{ id: requestId, at: new Date().toISOString() }], delete: [] }) as unknown as DbChange;
+
+/** Чи цей запит уже виконано (браузер надіслав його вдруге, бо не дочекався відповіді). */
+export async function wasApplied(requestId: string) {
+  const { data, error } = await db().from(APPLIED).select("id").eq("id", requestId).maybeSingle();
+  if (error) throw new Error(`${APPLIED}: ${error.message}`);
+  return Boolean(data);
+}
+
+/** Прибрати записи про запити, старші за тиждень: так довго повтору ніхто не чекає. */
+export async function forgetOldRequests() {
+  const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+  await db().from(APPLIED).delete().lt("at", weekAgo);
+}
+
 export async function loadData(): Promise<{ version: number; data: WeekData }> {
   const { data, error } = await db().rpc("load_data");
   if (error) throw new Error(`load_data: ${error.message}`);
@@ -37,7 +64,7 @@ export async function loadData(): Promise<{ version: number; data: WeekData }> {
  */
 export async function saveChanges(changes: DbChange[], passwords: Record<string, string>, expected: number) {
   for (const change of changes) {
-    if (!TABLES.includes(change.table)) throw new Error(`Невідома таблиця: ${change.table}`);
+    if (!TABLES.includes(change.table) && (change.table as string) !== APPLIED) throw new Error(`Невідома таблиця: ${change.table}`);
   }
   // Облікові записи людей, яких прибирають, — щоб прибрати і їх.
   const removedPeople = changes.find((c) => c.table === "people")?.delete ?? [];

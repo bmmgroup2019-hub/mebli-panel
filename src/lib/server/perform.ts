@@ -6,7 +6,7 @@ import type { WeekData } from "../model";
 import { allowed } from "../permissions";
 import { isIdLike } from "../util";
 import { visibleData } from "../visibility";
-import { hasPeople, loadData, saveChanges } from "./db";
+import { appliedChange, forgetOldRequests, hasPeople, loadData, saveChanges, wasApplied } from "./db";
 
 const ATTEMPTS = 5;
 
@@ -23,32 +23,40 @@ function usedIds(data: WeekData) {
 }
 
 type Outcome =
-  | { status: 200; data: WeekData | null; me: string | null }
-  | { status: 400 | 401 | 403 | 409; data: WeekData | null; me: string | null; error: string };
+  | { status: 200; data: WeekData | null; me: string | null; version: number }
+  | { status: 400 | 401 | 403 | 409; data: WeekData | null; me: string | null; version?: number; error: string };
 
-export async function perform(me: string, name: string, args: unknown[], ids: unknown[]): Promise<Outcome> {
+/**
+ * requestId — номер запиту з браузера. Якщо браузер не дочекався відповіді (поганий зв'язок) і надіслав дію ще раз,
+ * сервер бачить, що її вже виконано, і лише віддає свіжі дані — дія не повторюється (двічі та сама оплата тощо).
+ */
+export async function perform(me: string, name: string, args: unknown[], ids: unknown[], requestId: string): Promise<Outcome> {
   if (!isAction(name)) return { status: 400, data: null, me, error: `Невідома дія: ${name}` };
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
+    const repeated = await wasApplied(requestId);
     const { version, data } = await loadData();
     const user = data.people.find((person) => person.id === me) ?? null;
     if (!user) return { status: 401, data: null, me: null, error: "Сесія завершилась: увійдіть знову." };
     // Людині — лише те, що їй можна бачити (visibility.ts).
     const shown = visibleData(data, user);
+    if (repeated) return { status: 200, data: shown, me, version };
     if (!allowed(data, user, name, args)) {
-      return { status: 403, data: shown, me, error: "Немає права на цю зміну: її скасовано, на екрані — дані з бази." };
+      return { status: 403, data: shown, me, version, error: "Немає права на цю зміну: її скасовано, на екрані — дані з бази." };
     }
     const used = usedIds(data);
     if (!ids.every((id) => isIdLike(id) && !used.has(id as string))) {
-      return { status: 400, data: shown, me, error: "Неправильні id нових записів." };
+      return { status: 400, data: shown, me, version, error: "Неправильні id нових записів." };
     }
     const { passwords, data: next } = takePasswords(runAction(data, me, name, args, ids as string[]));
     const changes = diffTables(toDb(data), toDb(next));
-    if (changes.length === 0 && Object.keys(passwords).length === 0) return { status: 200, data: shown, me };
-    const saved = await saveChanges(changes, passwords, version);
+    if (changes.length === 0 && Object.keys(passwords).length === 0) return { status: 200, data: shown, me, version };
+    const saved = await saveChanges([...changes, appliedChange(requestId)], passwords, version);
     if (saved === null) continue;
+    // Зрідка прибираємо старі записи про запити.
+    if (Math.random() < 0.02) void forgetOldRequests().catch(() => undefined);
     // Людину могли прибрати (наприклад, «Повернути приклади»): тоді її сесії вже немає.
     const after = next.people.find((p) => p.id === me);
-    return after ? { status: 200, data: visibleData(next, after), me } : { status: 200, data: null, me: null };
+    return after ? { status: 200, data: visibleData(next, after), me, version: saved } : { status: 200, data: null, me: null, version: saved };
   }
   return { status: 409, data: null, me, error: "Базу саме змінюють інші: спробуйте ще раз." };
 }
