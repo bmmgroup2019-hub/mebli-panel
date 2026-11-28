@@ -11,9 +11,6 @@ import { newId, sameName } from "./util";
 import { keepFrozen } from "./prices";
 import { nextArticle, wholeMoney } from "./materials";
 
-/** Хто ввійшов у цьому браузері. Крок 1: лише запам'ятовується тут, справжня сесія — наступним кроком. */
-const SESSION_KEY = "panel-session";
-
 let data: WeekData | null = null;
 let loading = false;
 /** Текст помилки зв'язку з базою або null. */
@@ -29,14 +26,9 @@ async function load() {
     const response = await fetch("/api/data", { cache: "no-store" });
     const body = await response.json();
     if (!response.ok) throw new Error(body.error ?? response.statusText);
-    let sessionId: string | null = null;
-    try {
-      sessionId = localStorage.getItem(SESSION_KEY);
-    } catch {
-      // Без сховища браузера просто входимо знову.
-    }
+    // Хто ввійшов, каже сервер за cookie сесії.
     const loaded = body.data as WeekData;
-    data = { ...loaded, sessionId: loaded.people.some((p) => p.id === sessionId) ? sessionId : null };
+    data = { ...loaded, sessionId: body.me ?? null };
     if (loaded.stages.length === 0 && loaded.people.length === 0) write(seed());
     notify();
   } catch (error) {
@@ -60,6 +52,13 @@ function send(body: object) {
   queue = queue.then(async () => {
     try {
       const response = await fetch("/api/data", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (response.status === 401 && data) {
+        // Сесія завершилась (новий пароль, людину прибрали, пів року без входу): показуємо вхід.
+        data = { ...data, sessionId: null };
+        problem = "Сесія завершилась, останню зміну не збережено: увійдіть знову.";
+        notify();
+        return;
+      }
       if (!response.ok) throw new Error((await response.json().catch(() => null))?.error ?? response.statusText);
     } catch (error) {
       problem = `Зміну не збережено в базі: ${error instanceof Error ? error.message : String(error)}. Перезавантажте сторінку.`;
@@ -90,14 +89,6 @@ function write(changed: WeekData) {
   }
   const changes = diffTables(toDb(before), toDb(next));
   data = { ...next, people: next.people.map((p) => (p.password ? { ...p, password: "" } : p)) };
-  if (next.sessionId !== before.sessionId) {
-    try {
-      if (next.sessionId) localStorage.setItem(SESSION_KEY, next.sessionId);
-      else localStorage.removeItem(SESSION_KEY);
-    } catch {
-      // Без сховища браузера вхід живе до перезавантаження.
-    }
-  }
   if (changes.length || Object.keys(passwords).length) send({ changes, passwords });
   notify();
 }
@@ -158,19 +149,25 @@ export function useSpecAccess(project: Project) {
   return data ? specAccess(data, user, project) : { sees: false, canEdit: false };
 }
 
-/** true, якщо логін і пароль правильні. Перевіряє сервер (Supabase Auth). */
+/** true, якщо логін і пароль правильні. Перевіряє сервер (Supabase Auth) і ставить cookie сесії. */
 export async function signIn(login: string, password: string) {
   const response = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login, password }) });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.error ?? response.statusText);
   const current = read();
   const person = current.people.find((p) => p.id === body.personId);
-  if (person) write({ ...current, sessionId: person.id });
+  if (person) {
+    problem = null;
+    write({ ...current, sessionId: person.id });
+  }
   return Boolean(person);
 }
 
+/** Вихід: сервер прибирає cookie, тут одразу показуємо вхід. */
 export function signOut() {
   write({ ...read(), sessionId: null });
+  // Після записів, що ще йдуть: інакше вони прийшли б уже без сесії.
+  queue = queue.then(() => fetch("/api/logout", { method: "POST" })).then(() => undefined, () => undefined);
 }
 
 const loginTaken = (login: string, exceptId?: string) =>

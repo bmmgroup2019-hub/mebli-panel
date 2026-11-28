@@ -92,7 +92,8 @@ create table public.people (
   name text not null,
   login text not null,
   role text not null check (role in ('admin', 'manager', 'worker', 'buyer')),
-  stages text[] not null default '{}' -- етапи людини
+  stages text[] not null default '{}', -- етапи людини
+  sessions_from timestamptz not null default now() -- сесії дійсні з цього часу: новий пароль завершує старі входи
 );
 create unique index people_login_key on public.people (lower(login));
 

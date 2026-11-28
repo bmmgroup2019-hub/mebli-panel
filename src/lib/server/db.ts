@@ -62,12 +62,31 @@ async function authIdsOf(personIds: string[]) {
   return data.map((row) => row.auth_user_id as string | null).filter((id): id is string => Boolean(id));
 }
 
-/** Новий пароль людини: обліковий запис Supabase Auth створюється, якщо його ще немає. */
+/** Час (мс), з якого дійсні сесії людини, або null, якщо такої людини немає. */
+export async function sessionsFrom(personId: string) {
+  const { data, error } = await db().from("people").select("sessions_from").eq("id", personId).maybeSingle();
+  if (error) throw new Error(`people: ${error.message}`);
+  return data ? Date.parse(data.sessions_from) : null;
+}
+
+/** Чи є в базі хоч одна людина: порожню базу заповнюють прикладами ще до входу. */
+export async function hasPeople() {
+  const { count, error } = await db().from("people").select("id", { count: "exact", head: true });
+  if (error) throw new Error(`people: ${error.message}`);
+  return (count ?? 0) > 0;
+}
+
+/**
+ * Новий пароль людини: обліковий запис Supabase Auth створюється, якщо його ще немає.
+ * Змінений пароль завершує всі попередні входи людини.
+ */
 async function setPassword(personId: string, password: string) {
   const [authId] = await authIdsOf([personId]);
   if (authId) {
     const { error } = await db().auth.admin.updateUserById(authId, { password: authPassword(password) });
     if (error) throw new Error(`Пароль: ${error.message}`);
+    const ended = await db().from("people").update({ sessions_from: new Date().toISOString() }).eq("id", personId);
+    if (ended.error) throw new Error(`people: ${ended.error.message}`);
     return;
   }
   const created = await db().auth.admin.createUser({ email: authEmail(personId), password: authPassword(password), email_confirm: true });
