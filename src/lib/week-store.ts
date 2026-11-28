@@ -1,7 +1,8 @@
-// Сховище прототипу: localStorage цього браузера, дії, що змінюють дані, і хуки для сторінок.
+// Сховище сайту: дані з бази через сервер сайту (/api/data), дії, що змінюють дані, і хуки для сторінок.
+// Кожна зміна одразу видна тут, а в базу йде лише те, що змінилось (db-map.ts). Вхід — /api/login.
 // Модель — model.ts, правила (хто що бачить, статуси) — rules.ts, приклади — seed.ts і mock-projects.ts.
-// Із базою зміниться саме цей файл: дії підуть на сервер, правила й розрахунки лишаться спільними.
 import { useSyncExternalStore } from "react";
+import { diffTables, emptyData, toDb } from "./db-map";
 import { mondayOf, todayIso, formatDate } from "./dates";
 import { type ChangeNote, type Client, type Company, DETAIL_FIELDS, EMPTY_DETAILS, type Extra, type Material, type Person, type Pricing, type Project, projectLabel, type PurchaseStatus, type RowList, type SpecGroup, type SpecRow, type Stage, type StageId, type WeekData, type Work, type WorkItem } from "./model";
 import { assigneeOf, blockedReason, canRefuse, canReopen, estimateLocked, isFinished, isIntake, itemsOfWeek, nextProjectNumber, projectAccess, specAccess } from "./rules";
@@ -10,21 +11,61 @@ import { newId, sameName } from "./util";
 import { keepFrozen } from "./prices";
 import { nextArticle, wholeMoney } from "./materials";
 
-const KEY = "panel-week-v50";
+/** Хто ввійшов у цьому браузері. Крок 1: лише запам'ятовується тут, справжня сесія — наступним кроком. */
+const SESSION_KEY = "panel-session";
 
 let data: WeekData | null = null;
+let loading = false;
+/** Текст помилки зв'язку з базою або null. */
+let problem: string | null = null;
 const listeners = new Set<() => void>();
+const notify = () => listeners.forEach((listener) => listener());
 
-function read(): WeekData {
-  if (data) return data;
+/** Перше читання: дані з бази. Порожню базу заповнюємо прикладами. */
+async function load() {
+  if (loading || data) return;
+  loading = true;
   try {
-    const saved = localStorage.getItem(KEY);
-    if (saved) data = withFrozen(JSON.parse(saved) as WeekData);
-  } catch {
-    // Пошкоджені або недоступні дані: починаємо з прикладів.
+    const response = await fetch("/api/data", { cache: "no-store" });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.error ?? response.statusText);
+    let sessionId: string | null = null;
+    try {
+      sessionId = localStorage.getItem(SESSION_KEY);
+    } catch {
+      // Без сховища браузера просто входимо знову.
+    }
+    const loaded = body.data as WeekData;
+    data = { ...loaded, sessionId: loaded.people.some((p) => p.id === sessionId) ? sessionId : null };
+    if (loaded.stages.length === 0 && loaded.people.length === 0) write(seed());
+    notify();
+  } catch (error) {
+    problem = `Немає зв'язку з базою: ${error instanceof Error ? error.message : String(error)}`;
+    notify();
+  } finally {
+    loading = false;
   }
-  data ??= seed();
+}
+
+/** Дані для дій. Дії можливі лише на сторінці, яка вже показує дані. */
+function read(): WeekData {
+  if (!data) throw new Error("Дані ще не завантажено");
   return data;
+}
+
+/** Записи в базу йдуть по черзі, у тому порядку, в якому їх зробили. */
+let queue = Promise.resolve();
+
+function send(body: object) {
+  queue = queue.then(async () => {
+    try {
+      const response = await fetch("/api/data", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!response.ok) throw new Error((await response.json().catch(() => null))?.error ?? response.statusText);
+    } catch (error) {
+      problem = `Зміну не збережено в базі: ${error instanceof Error ? error.message : String(error)}. Перезавантажте сторінку.`;
+      notify();
+    }
+  });
 }
 
 /** Ціни кошторисів фіксуються при кожному записі, тож зміна довідника чи ставок їх уже не зачепить. */
@@ -36,24 +77,42 @@ function withFrozen(next: WeekData): WeekData {
   return projects.every((project, index) => project === next.projects[index]) ? next : { ...next, projects };
 }
 
+/**
+ * Нові дані: одразу на екрані, а що змінилось — у базу. Паролі в даних не лишаються:
+ * новий пароль іде на сервер (у Supabase Auth), а тут поле знову порожнє.
+ */
 function write(changed: WeekData) {
+  const before = data ?? emptyData();
   const next = withFrozen(changed);
-  data = next;
-  try {
-    localStorage.setItem(KEY, JSON.stringify(next));
-  } catch {
-    // Без сховища зміни просто живуть до перезавантаження сторінки.
+  const passwords: Record<string, string> = {};
+  for (const person of next.people) {
+    if (person.password && person.password !== before.people.find((p) => p.id === person.id)?.password) passwords[person.id] = person.password;
   }
-  listeners.forEach((listener) => listener());
+  const changes = diffTables(toDb(before), toDb(next));
+  data = { ...next, people: next.people.map((p) => (p.password ? { ...p, password: "" } : p)) };
+  if (next.sessionId !== before.sessionId) {
+    try {
+      if (next.sessionId) localStorage.setItem(SESSION_KEY, next.sessionId);
+      else localStorage.removeItem(SESSION_KEY);
+    } catch {
+      // Без сховища браузера вхід живе до перезавантаження.
+    }
+  }
+  if (changes.length || Object.keys(passwords).length) send({ changes, passwords });
+  notify();
 }
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
+  void load();
   return () => listeners.delete(listener);
 }
 
-/** null на сервері: дані є лише в браузері. */
-export const useWeekData = () => useSyncExternalStore(subscribe, read, () => null);
+/** null, поки дані не прийшли з бази (і на сервері). */
+export const useWeekData = () => useSyncExternalStore(subscribe, () => data, () => null);
+
+/** Помилка зв'язку з базою або null. */
+export const useDataProblem = () => useSyncExternalStore(subscribe, () => problem, () => null);
 
 export function useCurrentUser() {
   const data = useWeekData();
@@ -99,10 +158,13 @@ export function useSpecAccess(project: Project) {
   return data ? specAccess(data, user, project) : { sees: false, canEdit: false };
 }
 
-/** true, якщо логін і пароль правильні. */
-export function signIn(login: string, password: string) {
+/** true, якщо логін і пароль правильні. Перевіряє сервер (Supabase Auth). */
+export async function signIn(login: string, password: string) {
+  const response = await fetch("/api/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ login, password }) });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(body.error ?? response.statusText);
   const current = read();
-  const person = current.people.find((p) => p.login === login && p.password === password);
+  const person = current.people.find((p) => p.id === body.personId);
   if (person) write({ ...current, sessionId: person.id });
   return Boolean(person);
 }

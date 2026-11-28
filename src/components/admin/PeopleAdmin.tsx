@@ -180,8 +180,18 @@ function PersonRow({ person, active }: { person: Person; active: number }) {
           <Field label="Логін">
             <input defaultValue={person.login} autoComplete="off" className={input} onBlur={(e) => saveText("login", e.target)} />
           </Field>
-          <Field label="Пароль">
-            <input defaultValue={person.password} autoComplete="off" className={input} onBlur={(e) => saveText("password", e.target)} />
+          {/* Пароль зберігає Supabase Auth і не показується: вписане тут стає новим паролем. */}
+          <Field label="Новий пароль">
+            <input
+              defaultValue=""
+              placeholder="не змінювати"
+              autoComplete="new-password"
+              className={input}
+              onBlur={(e) => {
+                saveText("password", e.target);
+                e.target.value = "";
+              }}
+            />
           </Field>
           <Field label="Роль">
             <select

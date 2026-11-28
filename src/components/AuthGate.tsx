@@ -1,21 +1,31 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { signIn, useCurrentUser, useWeekData } from "@/lib/week-store";
+import { signIn, useCurrentUser, useDataProblem, useWeekData } from "@/lib/week-store";
 import { LogoMark } from "./Logo";
 
 const field = "rounded-lg border border-line bg-surface px-3 py-2.5 text-sm placeholder:text-ink-2 focus:border-accent";
 
-/** Показує сайт лише після входу. */
+/** Показує сайт лише після входу. Помилку зв'язку з базою видно над сторінкою. */
 export function AuthGate({ children }: { children: ReactNode }) {
   const data = useWeekData();
   const user = useCurrentUser();
-  if (!data) return <p className="py-16 text-center text-ink-2">Завантаження…</p>;
-  return user ? <>{children}</> : <LoginForm />;
+  const problem = useDataProblem();
+  const banner = problem && (
+    <p role="alert" className="sticky top-0 z-50 bg-critical px-4 py-2 text-center text-sm font-medium text-white">{problem}</p>
+  );
+  if (!data) return banner || <p className="py-16 text-center text-ink-2">Завантаження…</p>;
+  return (
+    <>
+      {banner}
+      {user ? children : <LoginForm />}
+    </>
+  );
 }
 
 function LoginForm() {
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState("");
+  const [busy, setBusy] = useState(false);
   return (
     <main className="mx-auto grid min-h-dvh w-full max-w-sm content-center gap-5 px-4 py-16">
       {/* Лого фірми над формою входу */}
@@ -32,7 +42,11 @@ function LoginForm() {
         onSubmit={(event) => {
           event.preventDefault();
           const values = new FormData(event.currentTarget);
-          setFailed(!signIn(String(values.get("login")).trim(), String(values.get("password"))));
+          setBusy(true);
+          signIn(String(values.get("login")).trim(), String(values.get("password")))
+            .then((ok) => setFailed(ok ? "" : "Неправильний логін або пароль."))
+            .catch((error: Error) => setFailed(`Не вдалося перевірити вхід: ${error.message}`))
+            .finally(() => setBusy(false));
         }}
       >
         <input name="login" aria-label="Логін" placeholder="Логін" autoComplete="username" className={field} />
@@ -44,8 +58,10 @@ function LoginForm() {
           autoComplete="current-password"
           className={field}
         />
-        {failed && <p role="alert" className="text-sm text-critical">Неправильний логін або пароль.</p>}
-        <button type="submit" className="rounded-lg bg-accent-fill px-3 py-2.5 text-sm font-semibold text-accent-on hover:bg-accent-fill-hover">Увійти</button>
+        {failed && <p role="alert" className="text-sm text-critical">{failed}</p>}
+        <button type="submit" disabled={busy} className="rounded-lg bg-accent-fill px-3 py-2.5 text-sm font-semibold text-accent-on hover:bg-accent-fill-hover disabled:opacity-60">
+          {busy ? "Перевіряю…" : "Увійти"}
+        </button>
       </form>
       <p className="text-sm text-ink-2">
         Прототип, дані вигадані. Адміністратор: admin / admin. Менеджер: manager / 2222. Менеджер 2: manager2 / 6666. Конструктор: konstruktor / 3333. Оператор ЧПУ: chpu / 4444. Крайка: kraika / 5555. Складальник: zbirka1 / 1111. Монтажник: montazh1 / 7777. Закупівельник: zakupka / 8888.

@@ -51,7 +51,8 @@
 ## Supabase (з 2026-11-27)
 - Тестовий проект «mebli-panel-test» (id `ldpvkohryplutuenirhe`, Лондон, безкоштовний): схему виконано, даних немає. Подробиці — `activeContext.md`.
 - У застосунку Claude підключено конектор Supabase (його інструменти `mcp__…__execute_sql`, `apply_migration`, `list_tables`, `get_advisors`): міграції й перевірки бази роблю сам. Працювати лише з цим проектом; створювати, зупиняти, видаляти проекти й платні дії — тільки з дозволу користувача.
-- Сайт до бази ще не підключено: сервер, вхід і переведення сховища — наступний крок. Ключі сайту — у `.env.local` (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`), вписує користувач.
+- З 2026-11-28 сайт працює з базою (крок 1, подробиці — `activeContext.md`): `src/lib/db-map.ts`, `src/lib/server/db.ts`, `src/app/api/data`, `src/app/api/login`. Ключі сайту — у `.env.local` (`SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SECRET_KEY`); секретний вписує користувач, не в чат. Без ключів сайт показує червону смугу «Немає зв'язку з базою».
+- Supabase забороняє `update`/`delete` без `where` у функціях, викликаних через API.
 
 ## Не налаштовано
 Сервіс Render.

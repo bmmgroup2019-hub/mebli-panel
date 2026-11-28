@@ -306,7 +306,8 @@ begin
     end if;
   end loop;
 
-  update public.app_version set version = version + 1 returning version into current_version;
+  -- where обов'язковий: Supabase забороняє update без умови.
+  update public.app_version set version = version + 1 where id returning version into current_version;
   return current_version;
 end;
 $$;

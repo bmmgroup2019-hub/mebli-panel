@@ -95,7 +95,9 @@ function Plan({ data }: { data: WeekData }) {
 
       <p className="text-sm text-ink-2">
         Прототип: дані вигадані, зміни зберігаються лише в цьому браузері.{" "}
-        {isAdmin && <button type="button" className="underline" onClick={resetWeekData}>Повернути приклади</button>}
+        {isAdmin && <button type="button" className="underline" onClick={() => {
+          if (window.confirm("Усі дані в базі буде замінено вигаданими прикладами, і всім треба буде ввійти знову. Продовжити?")) resetWeekData();
+        }}>Повернути приклади</button>}
       </p>
     </div>
   );
