@@ -1,21 +1,30 @@
 "use client";
 
 import { useState } from "react";
+import { useCanManage, useWeekData } from "@/lib/week-store";
+import { MaterialsAdmin } from "./admin/MaterialsAdmin";
 import { MaterialsList } from "./MaterialsList";
 import { MaterialsNeed } from "./MaterialsNeed";
 
+/** settings — лише для тих, хто веде налаштування довідника (адміністратор і менеджери). */
 const TABS = [
-  { id: "list", label: "Довідник" },
-  { id: "need", label: "Потреба на проекти" },
+  { id: "list", label: "Довідник", settings: false },
+  { id: "need", label: "Потреба на проекти", settings: false },
+  { id: "settings", label: "Налаштування", settings: true },
 ] as const;
 
 /** Розділ «Матеріали»: вкладки, як у картці проекту. */
 export function MaterialsTabs() {
-  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("list");
+  const data = useWeekData();
+  const canSettings = useCanManage();
+  const [chosen, setTab] = useState<(typeof TABS)[number]["id"]>("list");
+  const tabs = TABS.filter((t) => !t.settings || canSettings);
+  // Якщо вкладка стала недоступною (інша роль), повертаємося до довідника.
+  const tab = tabs.some((t) => t.id === chosen) ? chosen : "list";
   return (
     <>
       <div role="tablist" aria-label="Розділи матеріалів" className="no-scrollbar flex w-fit max-w-full gap-1 overflow-x-auto rounded-lg border border-line bg-surface p-1">
-        {TABS.map((t) => (
+        {tabs.map((t) => (
           <button
             key={t.id}
             type="button"
@@ -31,7 +40,9 @@ export function MaterialsTabs() {
         ))}
       </div>
       <div role="tabpanel" id="materials-tab" aria-labelledby={`tab-${tab}`} className="grid gap-4">
-        {tab === "list" ? <MaterialsList /> : <MaterialsNeed />}
+        {tab === "list" && <MaterialsList />}
+        {tab === "need" && <MaterialsNeed />}
+        {tab === "settings" && data && <MaterialsAdmin data={data} />}
       </div>
     </>
   );

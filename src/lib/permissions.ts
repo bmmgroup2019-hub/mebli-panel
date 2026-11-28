@@ -51,14 +51,6 @@ export const GUARDS: Record<string, Guard> = {
   // Довідники й налаштування веде адміністратор.
   updateCompany: admin,
   updatePricing: admin,
-  addSpecGroup: admin,
-  updateSpecGroup: admin,
-  removeSpecGroup: admin,
-  addUnit: admin,
-  removeUnit: admin,
-  addMaker: admin,
-  renameMaker: admin,
-  removeMaker: admin,
   addWork: admin,
   updateWork: admin,
   removeWork: admin,
@@ -78,6 +70,16 @@ export const GUARDS: Record<string, Guard> = {
   addPayout: admin,
   removePayout: admin,
   resetWeekData: admin,
+
+  // Налаштування довідника матеріалів (групи, одиниці, виробники): адміністратор і менеджери.
+  addSpecGroup: office,
+  updateSpecGroup: office,
+  removeSpecGroup: office,
+  addUnit: office,
+  removeUnit: office,
+  addMaker: office,
+  renameMaker: office,
+  removeMaker: office,
 
   // Довідник матеріалів: адміністратор, менеджер, закупівельник.
   addMaterial: materials,

@@ -39,12 +39,6 @@ export const ADMIN_SECTIONS = [
     count: (d: WeekData) => `Причин: ${d.refusalReasons.length}`,
   },
   {
-    href: "/admin/materials",
-    label: "Матеріали",
-    about: "Групи матеріалів, одиниці виміру й виробники.",
-    count: (d: WeekData) => `Груп: ${d.specGroups.length}, виробників: ${d.makers.length}`,
-  },
-  {
     href: "/admin/calc",
     label: "Розрахунки",
     about: "Роботи з цінами, ставки зарплати, націнка й заноска.",

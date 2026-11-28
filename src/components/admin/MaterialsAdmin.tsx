@@ -3,17 +3,17 @@
 import { useState } from "react";
 import { parseNumber } from "@/lib/materials";
 import { type StagePay, type WeekData } from "@/lib/model";
-import { addMaker, addSpecGroup, addUnit, addWork, removeMaker, removeSpecGroup, removeUnit, removeWork, renameMaker, updateSpecGroup, updatePricing, updateStage, updateWork, useWeekData } from "@/lib/week-store";
+import { addMaker, addSpecGroup, addUnit, addWork, removeMaker, removeSpecGroup, removeUnit, removeWork, renameMaker, updateSpecGroup, updatePricing, updateStage, updateWork } from "@/lib/week-store";
 import { field as input, button } from "../ui";
 
 
 type Tab = "groups" | "units" | "makers" | "works" | "pay" | "pricing";
 
-/** Два розділи панелі з одного набору вкладок: «Матеріали» й «Розрахунки». */
+/** Два набори вкладок: налаштування довідника (розділ «Матеріали») і «Розрахунки» (панель адміна). */
 const PARTS = {
   materials: {
-    title: "Матеріали",
-    about: "Групи, одиниці виміру й виробники. Самі матеріали додають у розділі «Матеріали» → «Довідник».",
+    title: "Налаштування довідника",
+    about: "Групи, одиниці виміру й виробники для довідника, кошторисів і специфікацій. Самі матеріали — на вкладці «Довідник».",
     tabs: [
       { id: "groups", label: "Групи" },
       { id: "units", label: "Одиниці виміру" },
@@ -32,7 +32,7 @@ const PARTS = {
 } satisfies Record<string, { title: string; about: string; tabs: { id: Tab; label: string }[] }>;
 export type AdminPart = keyof typeof PARTS;
 
-/** Панель адміна: довідники для матеріалів (part="materials") або налаштування розрахунків (part="calc"). */
+/** Налаштування довідника матеріалів (part="materials", адміністратор і менеджер) або розрахунків (part="calc", адміністратор). */
 export function MaterialsAdmin({ data, part = "materials" }: { data: WeekData; part?: AdminPart }) {
   const { title, about, tabs } = PARTS[part];
   const [tab, setTab] = useState<Tab>(tabs[0].id);
@@ -482,10 +482,4 @@ function Pricing({ data }: { data: WeekData }) {
       </div>
     </div>
   );
-}
-
-/** Розділ панелі: бере дані зі сховища сам. */
-export function MaterialsSection() {
-  const data = useWeekData();
-  return data ? <MaterialsAdmin data={data} /> : null;
 }
